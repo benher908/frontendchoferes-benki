@@ -101,13 +101,6 @@ export default function LoginPage() {
             {loading ? 'Ingresando...' : 'Iniciar sesión'}
           </button>
         </form>
-
-        <div className="mt-6 rounded-2xl bg-gray-50 p-4 text-xs text-gray-500">
-          <p className="font-semibold text-gray-700">Usuarios de prueba</p>
-          <p>supervisor / supervisor123</p>
-          <p>checador / checador123</p>
-          <p>jmaldonado / chofer123</p>
-        </div>
       </section>
     </main>
   );

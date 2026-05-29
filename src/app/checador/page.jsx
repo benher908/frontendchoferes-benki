@@ -1,125 +1,86 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppShell from '@/components/AppShell';
 import Card from '@/components/Card';
+import EmptyState from '@/components/EmptyState';
+import { useToast } from '@/components/ToastProvider';
 import { api } from '@/lib/api';
 import { fmtDate } from '@/lib/formatters';
-import { ClipboardCheck, Truck, Users } from 'lucide-react';
+import { ClipboardCheck, PlusCircle, Truck, Users } from 'lucide-react';
 
 export default function ChecadorHomePage() {
-  const [data, setData] = useState({
-    choferes: [],
-    unidades: [],
-    chequeos: [],
-  });
-
-  const [error, setError] = useState('');
+  const toast = useToast();
+  const [data, setData] = useState({ choferes: [], unidades: [], chequeos: [] });
+  const [loading, setLoading] = useState(true);
 
   async function cargar() {
     try {
-      setError('');
-
-      const [catalogos, chequeos] = await Promise.all([
-        api.catalogos(),
-        api.listarChequeos('?limit=10'),
-      ]);
-
-      setData({
-        choferes: catalogos.choferes || [],
-        unidades: catalogos.unidades || [],
-        chequeos: chequeos || [],
-      });
+      setLoading(true);
+      const [catalogos, chequeos] = await Promise.all([api.catalogos(), api.listarChequeos('?limit=10')]);
+      setData({ choferes: catalogos.choferes || [], unidades: catalogos.unidades || [], chequeos: chequeos || [] });
     } catch (err) {
-      setError(err.message || 'No se pudo cargar información');
+      toast.error(err.message || 'No se pudo cargar la información.');
+    } finally {
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <ProtectedRoute allowedRoles={['checador_unidad']}>
       <AppShell role="checador_unidad">
-        <header className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Checador de unidades</h1>
-          <p className="mt-1 text-gray-500">
-            Consulta historial y registra chequeos de unidad.
-          </p>
+        <header className="mb-5 rounded-[2rem] bg-gradient-to-br from-gray-950 to-[#6A5492] p-5 text-white shadow-sm">
+          <p className="text-sm font-bold uppercase tracking-wide text-white/70">Inicio</p>
+          <h1 className="mt-1 text-2xl font-black">Checador de unidades</h1>
+          <p className="mt-2 text-sm leading-6 text-white/80">Acceso rápido para registrar chequeos y revisar historial.</p>
         </header>
 
-        {error && (
-          <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
-
         <section className="grid gap-4 md:grid-cols-3">
-          <MetricCard
-            title="Choferes"
-            value={data.choferes.length}
-            icon={<Users size={22} />}
-          />
-
-          <MetricCard
-            title="Unidades"
-            value={data.unidades.length}
-            icon={<Truck size={22} />}
-          />
-
-          <MetricCard
-            title="Chequeos recientes"
-            value={data.chequeos.length}
-            icon={<ClipboardCheck size={22} />}
-          />
+          <MetricCard title="Choferes" value={data.choferes.length} icon={<Users size={22} />} />
+          <MetricCard title="Unidades" value={data.unidades.length} icon={<Truck size={22} />} />
+          <MetricCard title="Chequeos recientes" value={data.chequeos.length} icon={<ClipboardCheck size={22} />} />
         </section>
 
-        <Card title="Últimos chequeos" className="mt-6">
-          <div className="overflow-x-auto rounded-xl border border-gray-100">
-            <table className="w-full text-left text-sm text-gray-900">
-              <thead className="bg-gray-50">
-                <tr className="border-b border-gray-200 text-gray-800">
-                  <th className="px-3 py-3 font-semibold">Fecha</th>
-                  <th className="px-3 py-3 font-semibold">Unidad</th>
-                  <th className="px-3 py-3 font-semibold">Chofer</th>
-                  <th className="px-3 py-3 font-semibold">Tipo</th>
-                  <th className="px-3 py-3 text-right font-semibold">Fotos</th>
-                </tr>
-              </thead>
+        <section className="mt-5 grid gap-4 lg:grid-cols-[360px_1fr]">
+          <Card title="Acción principal" subtitle="Usa este acceso para crear una revisión de unidad.">
+            <Link href="/checador/chequeos" className="flex h-14 items-center justify-center gap-2 rounded-2xl bg-[#07AE8B] font-black text-white shadow-sm">
+              <PlusCircle size={21} /> Nuevo chequeo
+            </Link>
+            <p className="mt-3 rounded-2xl bg-gray-50 p-4 text-sm leading-6 text-gray-600">
+              El formulario está optimizado para celular: botones grandes, fotos claras y checklist por secciones.
+            </p>
+          </Card>
 
-              <tbody className="divide-y divide-gray-100 bg-white">
+          <Card title="Últimos chequeos" subtitle="Vista rápida de lo registrado recientemente.">
+            {loading ? (
+              <p className="py-8 text-center text-gray-600">Cargando...</p>
+            ) : data.chequeos.length ? (
+              <div className="grid gap-3">
                 {data.chequeos.map((row) => (
-                  <tr key={row.id}>
-                    <td className="px-3 py-3">
-                      <div className="font-semibold text-gray-950">{fmtDate(row.fecha)}</div>
-                      <div className="text-xs text-gray-600">{row.hora || '—'}</div>
-                    </td>
-
-                    <td className="px-3 py-3 text-gray-900">
-                      <div className="font-medium">{row.unidad_nombre || '—'}</div>
-                      <div className="text-xs text-gray-600">{row.placas || 'Sin placas'}</div>
-                    </td>
-
-                    <td className="px-3 py-3 text-gray-900">{row.chofer_nombre || '—'}</td>
-                    <td className="px-3 py-3 text-gray-900">{row.tipo}</td>
-                    <td className="px-3 py-3 text-right text-gray-900">{row.fotos_count || 0}</td>
-                  </tr>
+                  <article key={row.id} className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-black text-gray-950">{row.unidad_nombre || 'Unidad'}</p>
+                        <p className="text-sm text-gray-600">{row.placas || 'Sin placas'} · {fmtDate(row.fecha)} {row.hora || ''}</p>
+                      </div>
+                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-black text-gray-700">{row.fotos_count || 0} fotos</span>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-700"><strong>Chofer:</strong> {row.chofer_nombre || '—'}</p>
+                  </article>
                 ))}
-
-                {data.chequeos.length === 0 && (
-                  <tr>
-                    <td colSpan="5" className="px-3 py-8 text-center text-gray-600">
-                      Sin chequeos registrados.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+              </div>
+            ) : (
+              <EmptyState message="Aún no hay chequeos registrados." />
+            )}
+          </Card>
+        </section>
       </AppShell>
     </ProtectedRoute>
   );
@@ -129,14 +90,8 @@ function MetricCard({ title, value, icon }) {
   return (
     <Card>
       <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#07AE8B]/15 text-[#04745f]">
-          {icon}
-        </div>
-
-        <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="text-2xl font-bold text-gray-950">{value}</p>
-        </div>
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#07AE8B]/15 text-[#04745f]">{icon}</div>
+        <div><p className="text-sm font-bold text-gray-500">{title}</p><p className="text-2xl font-black text-gray-950">{value}</p></div>
       </div>
     </Card>
   );

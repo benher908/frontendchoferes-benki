@@ -764,7 +764,7 @@ function DetalleChequeo({ data, onClose }) {
 
       <div>
         <h3 className="mb-3 font-semibold text-gray-950">
-          Items con observación
+          Items con observación. (Solo se muestran los items que no sean reportados como 'Bueno').
         </h3>
 
         <div className="overflow-x-auto rounded-xl border border-gray-100">

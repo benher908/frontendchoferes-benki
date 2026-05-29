@@ -267,11 +267,6 @@ function VerificacionesTable({ rows }) {
         </table>
       </div>
 
-      {rows.length > 5 && (
-        <div className="border-t border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600">
-          Mostrando 5 registros visibles. Desplázate para ver los demás.
-        </div>
-      )}
     </div>
   );
 }

@@ -171,7 +171,7 @@ export default function ChoferCheckPage() {
       setSuccess('Check enviado correctamente');
       limpiarFormulario();
     } catch (err) {
-      setError(err.message || 'No se pudo guardar el check');
+      setError(err.message || 'No se pudo guardar el check. Revisa que las fotos no pesen demasiado y que los items tengan estado válido');
     } finally {
       setSaving(false);
     }
@@ -295,6 +295,7 @@ export default function ChoferCheckPage() {
                   <input
                     type="file"
                     accept="image/*"
+                    capture="environment"
                     multiple
                     onChange={(e) => setFotosExtra(Array.from(e.target.files || []))}
                     className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900"
@@ -359,9 +360,12 @@ function FotosObligatorias({ fotosBase, setFotosBase }) {
             <input
               type="file"
               accept="image/*"
+              capture="environment"
               required
               onChange={(e) => {
                 const file = e.target.files?.[0];
+
+                if (!file) return;
 
                 setFotosBase((prev) => ({
                   ...prev,

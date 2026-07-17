@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppShell from '@/components/AppShell';
@@ -21,6 +21,14 @@ const initialForm = {
 };
 
 export default function MantenimientosPage() {
+  return (
+    <Suspense fallback={<MantenimientosPageFallback />}>
+      <MantenimientosPageContent />
+    </Suspense>
+  );
+}
+
+function MantenimientosPageContent() {
   const searchParams = useSearchParams();
   const [unidades, setUnidades] = useState([]);
   const [verificaciones, setVerificaciones] = useState([]);
@@ -222,6 +230,21 @@ export default function MantenimientosPage() {
             )}
           </Card>
         </section>
+      </AppShell>
+    </ProtectedRoute>
+  );
+}
+
+function MantenimientosPageFallback() {
+  return (
+    <ProtectedRoute allowedRoles={['supervisor']}>
+      <AppShell role="supervisor">
+        <header className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Mantenimientos</h1>
+          <p className="mt-1 text-gray-500">
+            Cargando vista de mantenimientos...
+          </p>
+        </header>
       </AppShell>
     </ProtectedRoute>
   );

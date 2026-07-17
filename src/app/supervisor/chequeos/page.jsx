@@ -6,7 +6,7 @@ import AppShell from '@/components/AppShell';
 import Card from '@/components/Card';
 import { api } from '@/lib/api';
 import { useToast } from '@/components/ToastProvider';
-import { fmtDate } from '@/lib/formatters';
+import { fmtDate, todayMexicoInput } from '@/lib/formatters';
 import {
   Camera,
   Eye,
@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return todayMexicoInput();
 }
 
 const FOTO_TIPOS_BASE = [

@@ -19,15 +19,20 @@ import { clearSession, getUser } from '@/lib/auth';
 
 const supervisorLinks = [
   { href: '/supervisor', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/supervisor/rutas', label: 'Rutas del día', icon: Truck },
+  { href: '/supervisor/encuestas', label: 'Encuestas', icon: ClipboardCheck },
   { href: '/supervisor/registro-diario', label: 'Registro diario', icon: ClipboardCheck },
+  { href: '/supervisor/combustible', label: 'Combustible', icon: Truck },
   { href: '/supervisor/choferes', label: 'Choferes', icon: Users },
   { href: '/supervisor/chequeos', label: 'Chequeos', icon: Truck },
   { href: '/supervisor/verificaciones', label: 'Verificaciones', icon: CalendarCheck },
+  { href: '/supervisor/mantenimientos', label: 'Mantenimientos', icon: Truck },
   { href: '/supervisor/incentivos', label: 'Incentivos', icon: BadgeDollarSign },
 ];
 
 const choferLinks = [
   { href: '/chofer', label: 'Mi perfil', icon: UserRound },
+  { href: '/chofer/ruta', label: 'Mi ruta', icon: Truck },
   { href: '/chofer/check', label: 'Aviso y Check', icon: ClipboardCheck },
 ];
 
@@ -42,7 +47,8 @@ export default function AppShell({ role, children }) {
   const user = getUser();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const links = role === 'supervisor' ? supervisorLinks : role === 'chofer' ? choferLinks : checadorLinks;
+  const links =
+    role === 'supervisor' ? supervisorLinks : role === 'chofer' ? choferLinks : checadorLinks;
 
   function logout() {
     clearSession();
@@ -63,7 +69,9 @@ export default function AppShell({ role, children }) {
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-black text-slate-950">Sistema Choferes</p>
-              <p className="truncate text-xs font-medium text-slate-500">{user?.nombre_completo || user?.username || ''}</p>
+              <p className="truncate text-xs font-medium text-slate-500">
+                {user?.nombre_completo || user?.username || ''}
+              </p>
             </div>
           </div>
 
@@ -80,11 +88,18 @@ export default function AppShell({ role, children }) {
 
       {mobileOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <button type="button" aria-label="Cerrar menú" onClick={() => setMobileOpen(false)} className="absolute inset-0 bg-slate-950/45" />
+          <button
+            type="button"
+            aria-label="Cerrar menú"
+            onClick={() => setMobileOpen(false)}
+            className="absolute inset-0 bg-slate-950/45"
+          />
           <aside className="absolute left-0 top-0 h-full w-[84%] max-w-80 bg-white p-5 shadow-2xl">
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#B80000] to-[#002FB8] text-lg font-black text-white shadow-md">D</div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#B80000] to-[#002FB8] text-lg font-black text-white shadow-md">
+                  D
+                </div>
                 <h1 className="mt-4 text-xl font-black text-slate-950">Sistema Choferes</h1>
               </div>
               <button
@@ -108,9 +123,7 @@ export default function AppShell({ role, children }) {
       )}
 
       <main className="lg:pl-72">
-        <div className="mx-auto max-w-7xl p-4 pb-24 sm:p-6 lg:p-8">
-          {children}
-        </div>
+        <div className="mx-auto max-w-7xl p-4 pb-24 sm:p-6 lg:p-8">{children}</div>
       </main>
     </div>
   );
@@ -120,8 +133,12 @@ function SidebarContent({ links, pathname, user, logout }) {
   return (
     <>
       <div className="mb-8">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#B80000] to-[#002FB8] text-lg font-black text-white shadow-md">D</div>
-        <h1 className="mt-4 text-xl font-black tracking-tight text-slate-950">Sistema Choferes</h1>
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#B80000] to-[#002FB8] text-lg font-black text-white shadow-md">
+          D
+        </div>
+        <h1 className="mt-4 text-xl font-black tracking-tight text-slate-950">
+          Sistema Choferes
+        </h1>
       </div>
       <NavLinks links={links} pathname={pathname} />
       <div className="absolute bottom-5 left-5 right-5">
@@ -161,8 +178,12 @@ function NavLinks({ links, pathname, onClick }) {
 function UserBox({ user }) {
   return (
     <div className="mb-3 rounded-3xl bg-slate-50 p-4">
-      <p className="truncate text-sm font-black text-slate-950">{user?.nombre_completo || user?.username}</p>
-      <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">{user?.rol}</p>
+      <p className="truncate text-sm font-black text-slate-950">
+        {user?.nombre_completo || user?.username}
+      </p>
+      <p className="mt-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+        {user?.rol}
+      </p>
     </div>
   );
 }

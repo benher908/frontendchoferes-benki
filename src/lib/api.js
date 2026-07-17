@@ -39,6 +39,33 @@ export async function apiFetch(path, options = {}) {
   return data;
 }
 
+export async function publicApiFetch(path, options = {}) {
+  const isFormData = options.body instanceof FormData;
+  const headers = {
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    ...(options.headers || {}),
+  };
+
+  const response = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers,
+  });
+
+  let data = null;
+
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.error || data?.message || 'Error en la petición');
+  }
+
+  return data;
+}
+
 export const api = {
   login: ({ username, password }) =>
     apiFetch('/auth/login', {
@@ -66,6 +93,79 @@ export const api = {
 
   misChequeos: () => apiFetch('/mis-chequeos'),
 
+  miEstadoRuta: () => apiFetch('/rutas-viajes/mi-estado'),
+
+  obtenerEncuestaPublica: (token) => publicApiFetch(`/encuestas/${token}`),
+
+  resolverEncuestaPublicaPorRuta: (rutaId) => publicApiFetch(`/encuestas-ruta/${rutaId}`),
+
+  responderEncuestaPublica: (token, payload) =>
+    publicApiFetch(`/encuestas/${token}/responder`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  listarEncuestasInternas: (params = {}) => {
+    const search = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        search.set(key, String(value));
+      }
+    });
+
+    const suffix = search.toString() ? `?${search.toString()}` : '';
+    return apiFetch(`/encuestas-internas${suffix}`);
+  },
+
+  listarViajes: (params = {}) => {
+    const search = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        search.set(key, String(value));
+      }
+    });
+
+    const suffix = search.toString() ? `?${search.toString()}` : '';
+    return apiFetch(`/rutas-viajes${suffix}`);
+  },
+
+  asignarViaje: (payload) =>
+    apiFetch('/rutas-viajes/asignar', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  actualizarDetalleViaje: (viajeId, detalleId, payload) =>
+    apiFetch(`/rutas-viajes/${viajeId}/detalles/${detalleId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  prepararViaje: (payload) =>
+    apiFetch('/rutas-viajes/preparar', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  iniciarViaje: (id) =>
+    apiFetch(`/rutas-viajes/${id}/iniciar`, {
+      method: 'POST',
+    }),
+
+  finalizarViaje: (id, payload) =>
+    apiFetch(`/rutas-viajes/${id}/finalizar`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  cancelarViaje: (id, payload = {}) =>
+    apiFetch(`/rutas-viajes/${id}/cancelar`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
   incentivos: (anio, mes) => apiFetch(`/incentivos?anio=${anio}&mes=${mes}`),
 
   recalcularIncentivos: (payload) =>
@@ -84,6 +184,19 @@ export const api = {
 
   listarRendimiento: () => apiFetch('/rendimiento'),
 
+  reporteCombustibleDiario: (params = {}) => {
+    const search = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        search.set(key, String(value));
+      }
+    });
+
+    const suffix = search.toString() ? `?${search.toString()}` : '';
+    return apiFetch(`/rendimiento/combustible-diario${suffix}`);
+  },
+
   crearPuntualidad: (payload) =>
     apiFetch('/puntualidad', {
       method: 'POST',
@@ -91,6 +204,14 @@ export const api = {
     }),
 
   listarPuntualidad: () => apiFetch('/puntualidad'),
+
+  miPuntualidadHoy: () => apiFetch('/mis-puntualidad/hoy'),
+
+  registrarLlegadaCedis: (payload = {}) =>
+    apiFetch('/mis-puntualidad/llegada-cedis', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 
   crearServicio: (payload) =>
     apiFetch('/servicio', {
@@ -104,6 +225,12 @@ export const api = {
     apiFetch('/limpieza', {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+
+  subirFotosLimpieza: (id, formData) =>
+    apiFetch(`/limpieza/${id}/fotos`, {
+      method: 'POST',
+      body: formData,
     }),
 
   listarLimpieza: () => apiFetch('/limpieza'),
@@ -151,6 +278,51 @@ export const api = {
       method: 'DELETE',
     }),
 
+  mantenimientos: (params = {}) => {
+    const search = new URLSearchParams();
+
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        search.set(key, String(value));
+      }
+    });
+
+    const suffix = search.toString() ? `?${search.toString()}` : '';
+    return apiFetch(`/mantenimientos${suffix}`);
+  },
+
+  obtenerMantenimiento: (id) => apiFetch(`/mantenimientos/${id}`),
+
+  crearMantenimiento: (payload) =>
+    apiFetch('/mantenimientos', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  registrarEntradaMantenimiento: (id, payload) =>
+    apiFetch(`/mantenimientos/${id}/entrada`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  registrarSalidaMantenimiento: (id, payload) =>
+    apiFetch(`/mantenimientos/${id}/salida`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  solicitarProrrogaMantenimiento: (id, payload) =>
+    apiFetch(`/mantenimientos/${id}/prorrogas`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  cancelarMantenimiento: (id, payload = {}) =>
+    apiFetch(`/mantenimientos/${id}/cancelar`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
   catalogoChequeos: () => apiFetch('/chequeos/catalogo'),
 
   listarChequeos: (params = '') => apiFetch(`/chequeos${params}`),
@@ -177,7 +349,5 @@ export const api = {
     return apiFetch(`/chequeos/ultimo-chofer?${params.toString()}`);
   },
   
-  misChequeos: () => apiFetch('/mis-chequeos'),
-
   miUltimoChequeo: () => apiFetch('/mis-chequeos/ultimo'),
 };

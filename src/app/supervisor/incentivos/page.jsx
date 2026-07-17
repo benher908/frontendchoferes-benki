@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -224,7 +224,7 @@ export default function IncentivosPage() {
         <section className="grid gap-5 xl:grid-cols-[1fr_390px]">
           <Card
             title="Tabla mensual de incentivos"
-            subtitle="El porcentaje total se calcula con rendimiento 50%, puntualidad 12.5%, servicio 12.5% y limpieza 25%."
+            subtitle="El porcentaje total se calcula con rendimiento 15%, puntualidad 15%, servicio 30%, limpieza 20% y chequeos diarios 20%."
           >
             {loading ? (
               <p className="py-8 text-center text-gray-600">Cargando incentivos...</p>
@@ -264,6 +264,7 @@ function IncentivosTable({ rows, onPreview }) {
             <th className="px-3 py-3 text-center font-semibold">Punt.</th>
             <th className="px-3 py-3 text-center font-semibold">Serv.</th>
             <th className="px-3 py-3 text-center font-semibold">Limp.</th>
+            <th className="px-3 py-3 text-center font-semibold">Checks</th>
             <th className="px-3 py-3 text-center font-semibold">Total</th>
             <th className="px-3 py-3 text-right font-semibold">Monto</th>
             <th className="px-3 py-3 text-center font-semibold">Detalle</th>
@@ -303,6 +304,10 @@ function IncentivosTable({ rows, onPreview }) {
               </td>
 
               <td className="px-3 py-3 text-center">
+                {fmtPercentFromScore(row.score_chequeos)}
+              </td>
+
+              <td className="px-3 py-3 text-center">
                 <span className={badgeClass(row.score_total)}>
                   {fmtPercentFromScore(row.score_total)}
                 </span>
@@ -326,8 +331,8 @@ function IncentivosTable({ rows, onPreview }) {
 
           {rows.length === 0 && (
             <tr>
-              <td colSpan="10" className="px-3 py-10 text-center text-gray-600">
-                No hay incentivos calculados para este periodo. Presiona “Recalcular”.
+              <td colSpan="11" className="px-3 py-10 text-center text-gray-600">
+                No hay incentivos calculados para este periodo. Presiona "Recalcular".
               </td>
             </tr>
           )}
@@ -352,7 +357,7 @@ function DetallePreview({ data }) {
 
       <Rubro
         title="Rendimiento"
-        peso="50%"
+        peso="15%"
         score={data.rendimiento?.score}
         aporte={data.rendimiento?.aporte}
         detail={`${data.rendimiento?.cumplidos || 0} de ${data.rendimiento?.dias || 0} días cumplieron`}
@@ -360,7 +365,7 @@ function DetallePreview({ data }) {
 
       <Rubro
         title="Puntualidad"
-        peso="12.5%"
+        peso="15%"
         score={data.puntualidad?.score}
         aporte={data.puntualidad?.aporte}
         detail={`${data.puntualidad?.a_tiempo || 0} de ${data.puntualidad?.dias || 0} salidas a tiempo`}
@@ -368,23 +373,34 @@ function DetallePreview({ data }) {
 
       <Rubro
         title="Servicio"
-        peso="12.5%"
+        peso="30%"
         score={data.servicio?.score}
         aporte={data.servicio?.aporte}
-        detail={`${data.servicio?.incidencias_total || 0} incidencias en el mes`}
+        detail={
+          data.servicio?.origen === 'encuestas'
+            ? `${data.servicio?.respuestas || 0} respuestas de encuesta en el mes`
+            : `${data.servicio?.incidencias_total || 0} incidencias en el mes`
+        }
       />
 
       <Rubro
         title="Limpieza y cuidado"
-        peso="25%"
+        peso="20%"
         score={data.limpieza?.score}
         aporte={data.limpieza?.aporte}
-        detail={`${data.limpieza?.dias_penalizados_total || 0} días con penalización total`}
+        detail={`${data.limpieza?.dias_penalizados_total || 0} días con penalización total y ${data.limpieza?.dias_sin_registro || 0} días sin registro`}
+      />
+
+      <Rubro
+        title="Chequeos diarios"
+        peso="20%"
+        score={data.chequeos?.score}
+        aporte={data.chequeos?.aporte}
+        detail={`${data.chequeos?.dias_con_chequeo || 0} de ${data.chequeos?.dias || 0} días con chequeo`}
       />
     </div>
   );
 }
-
 function Rubro({ title, peso, score, aporte, detail }) {
   return (
     <div className="rounded-2xl border border-gray-100 p-4">
@@ -438,3 +454,4 @@ function badgeClass(score) {
 
   return 'inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-800';
 }
+

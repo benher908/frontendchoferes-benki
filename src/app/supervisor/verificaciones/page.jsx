@@ -1,15 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppShell from '@/components/AppShell';
 import Card from '@/components/Card';
 import { api } from '@/lib/api';
-import { fmtDate, fmtMoney } from '@/lib/formatters';
+import { fmtDate, fmtMoney, todayMexicoInput } from '@/lib/formatters';
 import { CalendarCheck, Pencil, Plus, Save, Trash2, X } from 'lucide-react';
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return todayMexicoInput();
 }
 
 const initialForm = {
@@ -22,6 +23,7 @@ const initialForm = {
 };
 
 export default function VerificacionesPage() {
+  const router = useRouter();
   const [unidades, setUnidades] = useState([]);
   const [verificaciones, setVerificaciones] = useState([]);
   const [proximas, setProximas] = useState([]);
@@ -329,6 +331,11 @@ export default function VerificacionesPage() {
                   rows={verificacionesFiltradas}
                   onEdit={editar}
                   onDelete={eliminar}
+                  onCreateMaintenance={(row) =>
+                    router.push(
+                      `/supervisor/mantenimientos?unidad_id=${row.unidad_id}&verificacion_id=${row.id}`
+                    )
+                  }
                 />
               )}
             </Card>
@@ -403,7 +410,7 @@ function AlertasTable({ rows }) {
   );
 }
 
-function VerificacionesTable({ rows, onEdit, onDelete }) {
+function VerificacionesTable({ rows, onEdit, onDelete, onCreateMaintenance }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-100">
       <table className="w-full text-left text-sm text-gray-900">
@@ -414,6 +421,7 @@ function VerificacionesTable({ rows, onEdit, onDelete }) {
             <th className="px-3 py-3 font-semibold">Próxima</th>
             <th className="px-3 py-3 font-semibold">Folio</th>
             <th className="px-3 py-3 text-right font-semibold">Costo</th>
+            <th className="px-3 py-3 text-center font-semibold">Mantenimiento</th>
             <th className="px-3 py-3 text-center font-semibold">Estado</th>
             <th className="px-3 py-3 text-center font-semibold">Acciones</th>
           </tr>
@@ -442,11 +450,27 @@ function VerificacionesTable({ rows, onEdit, onDelete }) {
               </td>
 
               <td className="px-3 py-3 text-center">
+                {row.mantenimiento_id ? (
+                  <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">
+                    {row.mantenimiento_estado || 'Relacionado'}
+                  </span>
+                ) : (
+                  <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-700">
+                    Sin mantenimiento
+                  </span>
+                )}
+              </td>
+
+              <td className="px-3 py-3 text-center">
                 <EstadoVerificacion dias={diasRestantes(row.proxima_verificacion)} />
               </td>
 
               <td className="px-3 py-3">
                 <div className="flex justify-center gap-2">
+                  <IconButton title="Crear mantenimiento" onClick={() => onCreateMaintenance(row)}>
+                    <CalendarCheck size={16} />
+                  </IconButton>
+
                   <IconButton title="Editar" onClick={() => onEdit(row)}>
                     <Pencil size={16} />
                   </IconButton>
@@ -461,7 +485,7 @@ function VerificacionesTable({ rows, onEdit, onDelete }) {
 
           {rows.length === 0 && (
             <tr>
-              <td colSpan="7" className="px-3 py-10 text-center text-gray-600">
+              <td colSpan="8" className="px-3 py-10 text-center text-gray-600">
                 No hay verificaciones registradas.
               </td>
             </tr>

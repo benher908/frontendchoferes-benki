@@ -38,6 +38,7 @@ export default function ChoferCheckPage() {
   const [unidades, setUnidades] = useState([]);
   const [catalogoItems, setCatalogoItems] = useState([]);
   const [items, setItems] = useState([]);
+  const [estadoRuta, setEstadoRuta] = useState(null);
 
   const [form, setForm] = useState(initialForm);
   const [fotosBase, setFotosBase] = useState({});
@@ -68,15 +69,20 @@ export default function ChoferCheckPage() {
       setLoading(true);
       setError('');
 
-      const [me, unidadesRes, catalogo] = await Promise.all([
+      const [me, unidadesRes, catalogo, estadoRutaRes] = await Promise.all([
         api.me(),
         api.unidades(),
         api.catalogoChequeos(),
+        api.miEstadoRuta(),
       ]);
 
       setUser(me);
       setUnidades(unidadesRes || []);
       setCatalogoItems(catalogo || []);
+      setEstadoRuta(estadoRutaRes || null);
+
+      const viajeActivo = estadoRutaRes?.viaje_activo || estadoRutaRes?.viajes_hoy?.find((item) => item.estado !== 'FINALIZADA' && item.estado !== 'CANCELADA') || null;
+      const ultimoCierre = estadoRutaRes?.ultimo_cierre_operativo || null;
 
       setItems(
         (catalogo || []).map((item) => ({
@@ -85,6 +91,12 @@ export default function ChoferCheckPage() {
           comentario: '',
         }))
       );
+
+      setForm((prev) => ({
+        ...prev,
+        unidad_id: prev.unidad_id || (viajeActivo?.unidad_id ? String(viajeActivo.unidad_id) : ''),
+        kilometraje: prev.kilometraje || (ultimoCierre?.km_final ? String(ultimoCierre.km_final) : ''),
+      }));
     } catch (err) {
       toast.error(err.message || 'No se pudo cargar información');
       setError(err.message || 'No se pudo cargar información');
@@ -266,6 +278,16 @@ export default function ChoferCheckPage() {
 
               <Card title="Datos de la unidad">
                 <div className="space-y-4">
+                  <div className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
+                    <p className="font-semibold text-gray-950">Kilometraje inicial sugerido</p>
+                    <p className="mt-1">
+                      {estadoRuta?.ultimo_cierre_operativo?.km_final ?? 'Sin historial'}
+                    </p>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Se toma del último cierre operativo registrado.
+                    </p>
+                  </div>
+
                   <MobileSelect
                     label="Unidad"
                     value={form.unidad_id}
@@ -275,12 +297,12 @@ export default function ChoferCheckPage() {
                   />
 
                   <MobileInput
-                    label="Kilometraje"
+                    label="Kilometraje inicial"
                     type="number"
                     inputMode="numeric"
                     value={form.kilometraje}
                     onChange={(v) => setForm({ ...form, kilometraje: v })}
-                    placeholder="Kilometraje actual"
+                    placeholder="Kilometraje inicial sugerido"
                   />
 
                   <MobileToggle
@@ -405,7 +427,8 @@ function FotosObligatorias({ fotosBase, setFotosBase }) {
 }
 
 function PhotoPicker({ label, file, onChange }) {
-  const inputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
 
   return (
     <div className={`rounded-2xl border p-3 ${file ? 'border-[#07AE8B] bg-[#07AE8B]/5' : 'border-gray-200 bg-white'}`}>
@@ -418,7 +441,7 @@ function PhotoPicker({ label, file, onChange }) {
       </div>
 
       <input
-        ref={inputRef}
+        ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
@@ -429,14 +452,36 @@ function PhotoPicker({ label, file, onChange }) {
         }}
       />
 
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-bold text-white"
-      >
-        <ImagePlus size={18} />
-        {file ? 'Cambiar foto' : 'Tomar foto'}
-      </button>
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const selected = e.target.files?.[0];
+          if (selected) onChange(selected);
+        }}
+      />
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-bold text-white"
+        >
+          <Camera size={18} />
+          {file ? 'Cambiar cámara' : 'Tomar foto'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => galleryInputRef.current?.click()}
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-800"
+        >
+          <ImagePlus size={18} />
+          Elegir galería
+        </button>
+      </div>
 
       {file && <p className="mt-2 truncate text-xs font-medium text-[#04745f]">{file.name}</p>}
     </div>
@@ -444,13 +489,14 @@ function PhotoPicker({ label, file, onChange }) {
 }
 
 function ExtraPhotosInput({ fotosExtra, setFotosExtra }) {
-  const inputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
 
   return (
     <div className="rounded-2xl border border-dashed border-gray-300 p-3">
       <p className="mb-2 text-sm font-bold text-gray-800">Fotos extra por incidente</p>
       <input
-        ref={inputRef}
+        ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
@@ -458,14 +504,32 @@ function ExtraPhotosInput({ fotosExtra, setFotosExtra }) {
         className="hidden"
         onChange={(e) => setFotosExtra(Array.from(e.target.files || []))}
       />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-800"
-      >
-        <ImagePlus size={18} />
-        Agregar fotos extra
-      </button>
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => setFotosExtra(Array.from(e.target.files || []))}
+      />
+      <div className="grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => cameraInputRef.current?.click()}
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-bold text-white"
+        >
+          <Camera size={18} />
+          Tomar foto
+        </button>
+        <button
+          type="button"
+          onClick={() => galleryInputRef.current?.click()}
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-gray-800"
+        >
+          <ImagePlus size={18} />
+          Elegir galería
+        </button>
+      </div>
       {fotosExtra.length > 0 && (
         <p className="mt-2 text-xs font-medium text-gray-600">
           {fotosExtra.length} foto(s) extra seleccionada(s)

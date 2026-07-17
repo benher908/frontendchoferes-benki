@@ -41,6 +41,7 @@ const initialForm = {
   tipo_licencia: '',
   vigencia_licencia: '',
   telefono: '',
+  unidad_default_id: '',
   rutas_ids: [],
   notas: '',
 };
@@ -48,6 +49,7 @@ const initialForm = {
 export default function ChoferesPage() {
   const [choferes, setChoferes] = useState([]);
   const [rutas, setRutas] = useState([]);
+  const [unidades, setUnidades] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [editando, setEditando] = useState(null);
   const [resumen, setResumen] = useState(null);
@@ -103,6 +105,7 @@ export default function ChoferesPage() {
 
       setChoferes(choferesRes || []);
       setRutas(catalogosRes.rutas || []);
+      setUnidades(catalogosRes.unidades || []);
     } catch (err) {
       setError(err.message || 'No se pudo cargar choferes');
     } finally {
@@ -133,6 +136,7 @@ export default function ChoferesPage() {
         ? String(chofer.vigencia_licencia).slice(0, 10)
         : '',
       telefono: chofer.telefono || '',
+      unidad_default_id: chofer.unidad_default_id ? String(chofer.unidad_default_id) : '',
       rutas_ids: Array.isArray(chofer.rutas_ids)
         ? chofer.rutas_ids.map(Number)
         : [],
@@ -160,11 +164,6 @@ export default function ChoferesPage() {
       return;
     }
 
-    if (form.rutas_ids.length > 3) {
-      setError('Solo puedes asignar máximo 3 rutas por chofer');
-      return;
-    }
-
     try {
       setSaving(true);
       setError('');
@@ -177,6 +176,7 @@ export default function ChoferesPage() {
           tipo_licencia: form.tipo_licencia || null,
           vigencia_licencia: form.vigencia_licencia || null,
           telefono: form.telefono || null,
+          unidad_default_id: form.unidad_default_id ? Number(form.unidad_default_id) : null,
           rutas_ids: form.rutas_ids.map(Number),
           notas: form.notas || null,
         });
@@ -191,6 +191,7 @@ export default function ChoferesPage() {
           tipo_licencia: form.tipo_licencia || null,
           vigencia_licencia: form.vigencia_licencia || null,
           telefono: form.telefono || null,
+          unidad_default_id: form.unidad_default_id ? Number(form.unidad_default_id) : null,
           rutas_ids: form.rutas_ids.map(Number),
           notas: form.notas || null,
         });
@@ -254,7 +255,7 @@ export default function ChoferesPage() {
         <header className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Perfil de choferes</h1>
           <p className="mt-1 text-gray-500">
-            Administra choferes, asigna hasta 3 rutas y consulta sus registros.
+            Administra choferes, asigna sus rutas y consulta sus registros.
           </p>
         </header>
 
@@ -340,6 +341,17 @@ export default function ChoferesPage() {
                 label="Teléfono"
                 value={form.telefono}
                 onChange={(v) => setForm({ ...form, telefono: v })}
+              />
+
+              <Select
+                label="Unidad por defecto"
+                value={form.unidad_default_id}
+                onChange={(v) => setForm({ ...form, unidad_default_id: v })}
+                options={unidades.map((unidad) => ({
+                  value: String(unidad.id),
+                  label: `${unidad.nombre}${unidad.placas ? ` - ${unidad.placas}` : ''}`,
+                }))}
+                placeholder="Selecciona una unidad"
               />
 
               <MultiRutaSelect
@@ -575,7 +587,7 @@ function ResumenChofer({ data }) {
         <MiniTable
           title="Puntualidad"
           rows={data.puntualidad}
-          columns={['fecha', 'ruta_nombre', 'hora_programada', 'hora_salida_real', 'a_tiempo']}
+          columns={['fecha', 'ruta_nombre', 'hora_programada', 'hora_llegada', 'hora_inicio_ruta', 'a_tiempo']}
         />
 
         <MiniTable
@@ -655,11 +667,6 @@ function MultiRutaSelect({ label, value = [], onChange, options }) {
       return;
     }
 
-    if (selected.length >= 3) {
-      alert('Solo puedes asignar máximo 3 rutas por chofer');
-      return;
-    }
-
     onChange([...selected, id]);
   }
 
@@ -701,7 +708,7 @@ function MultiRutaSelect({ label, value = [], onChange, options }) {
       </div>
 
       <p className="mt-2 text-xs text-gray-500">
-        Puedes asignar de 1 a 3 rutas. La primera seleccionada será la ruta principal.
+        Puedes asignar una o varias rutas. La primera seleccionada será la ruta principal.
       </p>
     </div>
   );
@@ -717,6 +724,26 @@ function Input({ label, value, onChange, ...props }) {
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#07AE8B] focus:ring-4 focus:ring-[#07AE8B]/10"
       />
+    </label>
+  );
+}
+
+function Select({ label, value, onChange, options = [], placeholder = 'Selecciona...' }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium text-gray-700">{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#07AE8B] focus:ring-4 focus:ring-[#07AE8B]/10"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }

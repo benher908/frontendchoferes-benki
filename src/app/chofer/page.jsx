@@ -148,6 +148,7 @@ export default function ChoferHomePage() {
                   <Mini label="Puntualidad" value={`${(Number(incentivo.puntualidad?.score || 0) * 100).toFixed(1)}%`} />
                   <Mini label="Servicio" value={`${(Number(incentivo.servicio?.score || 0) * 100).toFixed(1)}%`} />
                   <Mini label="Limpieza" value={`${(Number(incentivo.limpieza?.score || 0) * 100).toFixed(1)}%`} />
+                  <Mini label="Chequeos diarios" value={`${(Number(incentivo.chequeos?.score || 0) * 100).toFixed(1)}%`} />
                 </div>
               </div>
             ) : (

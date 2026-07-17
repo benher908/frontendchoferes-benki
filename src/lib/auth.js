@@ -15,7 +15,7 @@ export function getToken(){
 export function getUser(){
     if(typeof window === 'undefined') return null;
     const raw = localStorage.getItem(USER_KEY);
-    if(!raw) return nulll;
+    if(!raw) return null;
     try{
         return  JSON.parse(raw);
     } catch{

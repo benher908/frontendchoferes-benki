@@ -11,9 +11,17 @@ function dateOnly(value) {
 }
 
 function boolText(value) {
-  if (value === true || value === 1) return 'Sí';
+  if (value === true || value === 1) return 'Si';
   if (value === false || value === 0) return 'No';
   return '';
+}
+
+function sortByDateDesc(rows, field = 'fecha') {
+  return [...(rows || [])].sort((a, b) => {
+    const av = String(a?.[field] || '');
+    const bv = String(b?.[field] || '');
+    return bv.localeCompare(av);
+  });
 }
 
 function autoSizeColumns(worksheet, rows) {
@@ -48,26 +56,27 @@ export function descargarExcelIncentivos({ rows, periodo }) {
   const data = rows.map((item) => ({
     Chofer: safe(item.chofer_nombre),
     Ruta: safe(item.ruta_nombre),
-    'Días trabajados': safe(item.dias_trabajados),
+    'Dias trabajados': safe(item.dias_trabajados),
     'Rendimiento %': Number(item.score_rendimiento || 0) * 100,
     'Puntualidad %': Number(item.score_puntualidad || 0) * 100,
     'Servicio %': Number(item.score_servicio || 0) * 100,
     'Limpieza %': Number(item.score_limpieza || 0) * 100,
+    'Chequeos diarios %': Number(item.score_chequeos || 0) * 100,
     'Total %': Number(item.score_total || 0) * 100,
-    'Monto máximo': Number(item.monto_maximo || 0),
+    'Monto maximo': Number(item.monto_maximo || 0),
     Monto: Number(item.monto || 0),
     'Calculado en': safe(item.calculado_at),
   }));
 
   const resumen = [
     {
-      Año: periodo.anio,
+      Anio: periodo.anio,
       Mes: periodo.mes,
       'Choferes calculados': rows.length,
       'Monto total': rows.reduce((sum, item) => sum + Number(item.monto || 0), 0),
       'Promedio %':
         rows.length > 0
-          ? rows.reduce((sum, item) => sum + Number(item.score_total || 0), 0) / rows.length * 100
+          ? (rows.reduce((sum, item) => sum + Number(item.score_total || 0), 0) / rows.length) * 100
           : 0,
     },
   ];
@@ -88,14 +97,14 @@ export function descargarExcelChofer({ resumen }) {
   const periodo = resumen.periodo || {};
   const incentivo = resumen.incentivo || null;
 
-  addSheet(workbook, 'Información', [
+  addSheet(workbook, 'Informacion', [
     {
       ID: safe(chofer.id),
       Nombre: safe(chofer.nombre),
       Usuario: safe(chofer.username),
       Rutas: safe(chofer.ruta_nombre),
-      Teléfono: safe(chofer.telefono),
-      'Número licencia': safe(chofer.numero_licencia),
+      Telefono: safe(chofer.telefono),
+      'Numero licencia': safe(chofer.numero_licencia),
       'Tipo licencia': safe(chofer.tipo_licencia),
       'Vigencia licencia': dateOnly(chofer.vigencia_licencia),
       'Fecha ingreso': dateOnly(chofer.fecha_ingreso),
@@ -108,7 +117,7 @@ export function descargarExcelChofer({ resumen }) {
   addSheet(
     workbook,
     'Rendimiento',
-    (resumen.rendimiento || []).map((r) => ({
+    sortByDateDesc(resumen.rendimiento || []).map((r) => ({
       Fecha: dateOnly(r.fecha),
       Unidad: safe(r.unidad_nombre),
       Placas: safe(r.placas),
@@ -119,7 +128,7 @@ export function descargarExcelChofer({ resumen }) {
       Rendimiento: safe(r.rendimiento),
       'Cumple objetivo': boolText(r.cumple_objetivo),
       'Precio litro': safe(r.precio_litro),
-      'Total mercancía': safe(r.total_mercancia),
+      'Total mercancia': safe(r.total_mercancia),
       Casetas: safe(r.casetas),
       Notas: safe(r.notas),
     }))
@@ -128,11 +137,12 @@ export function descargarExcelChofer({ resumen }) {
   addSheet(
     workbook,
     'Puntualidad',
-    (resumen.puntualidad || []).map((p) => ({
+    sortByDateDesc(resumen.puntualidad || []).map((p) => ({
       Fecha: dateOnly(p.fecha),
       Ruta: safe(p.ruta_nombre),
-      'Hora programada': safe(p.hora_programada),
-      'Hora salida real': safe(p.hora_salida_real),
+      'Hora llegada esperada': safe(p.hora_programada),
+      'Hora llegada CEDIS': safe(p.hora_llegada),
+      'Hora salida real': safe(p.hora_inicio_ruta),
       'Tolerancia minutos': safe(p.tolerancia_minutos),
       'A tiempo': boolText(p.a_tiempo),
       Notas: safe(p.notas),
@@ -142,7 +152,7 @@ export function descargarExcelChofer({ resumen }) {
   addSheet(
     workbook,
     'Servicio',
-    (resumen.servicio || []).map((s) => ({
+    sortByDateDesc(resumen.servicio || []).map((s) => ({
       Fecha: dateOnly(s.fecha),
       Ruta: safe(s.ruta_nombre),
       'Clientes esperados': safe(s.clientes_esperados),
@@ -155,16 +165,16 @@ export function descargarExcelChofer({ resumen }) {
   addSheet(
     workbook,
     'Limpieza',
-    (resumen.limpieza || []).map((l) => ({
+    sortByDateDesc(resumen.limpieza || []).map((l) => ({
       Fecha: dateOnly(l.fecha),
       Unidad: safe(l.unidad_nombre),
       Placas: safe(l.placas),
       'Lavada semana': boolText(l.lavada_semana),
-      'Reportó falla': boolText(l.reporto_falla),
+      'Reporto falla': boolText(l.reporto_falla),
       'Detalle falla': safe(l.detalle_falla),
       'Mantenimiento realizado': boolText(l.mantenimiento_realizado),
       'Mantenimiento a tiempo': boolText(l.mantenimiento_a_tiempo),
-      'Chofer reportó preventivo': boolText(l.chofer_reporto_preventivo),
+      'Chofer reporto preventivo': boolText(l.chofer_reporto_preventivo),
       Notas: safe(l.notas),
     }))
   );
@@ -172,7 +182,7 @@ export function descargarExcelChofer({ resumen }) {
   addSheet(
     workbook,
     'Chequeos recientes',
-    (resumen.chequeos_recientes || []).map((c) => ({
+    sortByDateDesc(resumen.chequeos_recientes || []).map((c) => ({
       Fecha: dateOnly(c.fecha),
       Hora: safe(c.hora),
       Tipo: safe(c.tipo),
@@ -193,4 +203,26 @@ export function descargarExcelChofer({ resumen }) {
     workbook,
     `registro_chofer_${nombreArchivo || chofer.id}_${periodo.anio}_${String(periodo.mes).padStart(2, '0')}.xlsx`
   );
+}
+
+export function descargarExcelCombustibleDiario({ fecha, periodo = 'dia', rows }) {
+  const workbook = XLSX.utils.book_new();
+
+  addSheet(
+    workbook,
+    'Combustible diario',
+    sortByDateDesc(rows || []).map((r) => ({
+      FECHA: dateOnly(r.fecha),
+      UNIDAD: safe(r.unidad_nombre),
+      'KM.I': Number(r.km_inicial || 0),
+      'KM.F': Number(r.km_final || 0),
+      'KM.R': Number(r.km_recorridos || 0),
+      'PRECIO UNITARIO': Number(r.precio_litro || 0),
+      LITROS: Number(r.litros_consumidos || r.litros || 0),
+      TOTAL: Number(r.total_combustible || 0),
+      CASETAS: Number(r.casetas || 0),
+    }))
+  );
+
+  XLSX.writeFile(workbook, `combustible_${periodo}_${dateOnly(fecha)}.xlsx`);
 }

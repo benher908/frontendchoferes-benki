@@ -46,12 +46,7 @@ export default function VerificacionesPage() {
     if (!q) return verificaciones;
 
     return verificaciones.filter((v) =>
-      [
-        v.unidad_nombre,
-        v.placas,
-        v.folio,
-        v.notas,
-      ]
+      [v.unidad_nombre, v.placas, v.folio, v.notas]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(q))
     );
@@ -79,7 +74,6 @@ export default function VerificacionesPage() {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diasFiltro]);
@@ -193,18 +187,8 @@ export default function VerificacionesPage() {
         )}
 
         <section className="mb-6 grid gap-4 md:grid-cols-3">
-          <MetricCard
-            title="Unidades"
-            value={unidades.length}
-            subtitle="Activas en catálogo"
-          />
-
-          <MetricCard
-            title="Verificaciones"
-            value={verificaciones.length}
-            subtitle="Registros cargados"
-          />
-
+          <MetricCard title="Unidades" value={unidades.length} subtitle="Activas en catálogo" />
+          <MetricCard title="Verificaciones" value={verificaciones.length} subtitle="Registros cargados" />
           <MetricCard
             title="Próximas verificaciones"
             value={proximas.length}
@@ -370,86 +354,100 @@ function MetricCard({ title, value, subtitle, danger = false }) {
 
 function AlertasTable({ rows }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-100">
-      <table className="w-full text-left text-sm text-gray-900">
-        <thead className="bg-gray-50">
-          <tr className="border-b border-gray-200 text-gray-800">
-            <th className="px-3 py-3 font-semibold">Unidad</th>
-            <th className="px-3 py-3 font-semibold">Placas</th>
-            <th className="px-3 py-3 font-semibold">Próxima</th>
-            <th className="px-3 py-3 text-center font-semibold">Estado</th>
-          </tr>
-        </thead>
-
-        <tbody className="divide-y divide-gray-100 bg-white">
-          {rows.map((row) => (
-            <tr key={`${row.unidad_id}-${row.verificacion_id || 'sin'}`}>
-              <td className="px-3 py-3 font-semibold text-gray-950">
-                {row.unidad_nombre}
-              </td>
-              <td className="px-3 py-3 text-gray-900">{row.placas || '—'}</td>
-              <td className="px-3 py-3 text-gray-900">
-                {fmtDate(row.proxima_verificacion)}
-              </td>
-              <td className="px-3 py-3 text-center">
+    <div className="space-y-4">
+      <div className="space-y-3 lg:hidden">
+        {rows.length === 0 ? (
+          <div className="rounded-2xl border border-gray-100 bg-white px-4 py-6 text-center text-sm text-gray-600">
+            No hay verificaciones próximas en este rango.
+          </div>
+        ) : (
+          rows.map((row) => (
+            <div
+              key={`${row.unidad_id}-${row.verificacion_id || 'sin'}`}
+              className="rounded-2xl border border-gray-100 p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-950">{row.unidad_nombre}</p>
+                  <p className="text-sm text-gray-600">{row.placas || 'Sin placas'}</p>
+                  <p className="text-xs text-gray-500">
+                    Próxima: {fmtDate(row.proxima_verificacion)}
+                  </p>
+                </div>
                 <EstadoVerificacion dias={row.dias_restantes} />
-              </td>
-            </tr>
-          ))}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
 
-          {rows.length === 0 && (
-            <tr>
-              <td colSpan="4" className="px-3 py-8 text-center text-gray-600">
-                No hay verificaciones próximas en este rango.
-              </td>
+      <div className="hidden overflow-x-auto rounded-xl border border-gray-100 lg:block">
+        <table className="w-full text-left text-sm text-gray-900">
+          <thead className="bg-gray-50">
+            <tr className="border-b border-gray-200 text-gray-800">
+              <th className="px-3 py-3 font-semibold">Unidad</th>
+              <th className="px-3 py-3 font-semibold">Placas</th>
+              <th className="px-3 py-3 font-semibold">Próxima</th>
+              <th className="px-3 py-3 text-center font-semibold">Estado</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {rows.map((row) => (
+              <tr key={`${row.unidad_id}-${row.verificacion_id || 'sin'}`}>
+                <td className="px-3 py-3 font-semibold text-gray-950">{row.unidad_nombre}</td>
+                <td className="px-3 py-3 text-gray-900">{row.placas || '—'}</td>
+                <td className="px-3 py-3 text-gray-900">{fmtDate(row.proxima_verificacion)}</td>
+                <td className="px-3 py-3 text-center">
+                  <EstadoVerificacion dias={row.dias_restantes} />
+                </td>
+              </tr>
+            ))}
+
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan="4" className="px-3 py-8 text-center text-gray-600">
+                  No hay verificaciones próximas en este rango.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
 function VerificacionesTable({ rows, onEdit, onDelete, onCreateMaintenance }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-100">
-      <table className="w-full text-left text-sm text-gray-900">
-        <thead className="bg-gray-50">
-          <tr className="border-b border-gray-200 text-gray-800">
-            <th className="px-3 py-3 font-semibold">Unidad</th>
-            <th className="px-3 py-3 font-semibold">Actual</th>
-            <th className="px-3 py-3 font-semibold">Próxima</th>
-            <th className="px-3 py-3 font-semibold">Folio</th>
-            <th className="px-3 py-3 text-right font-semibold">Costo</th>
-            <th className="px-3 py-3 text-center font-semibold">Mantenimiento</th>
-            <th className="px-3 py-3 text-center font-semibold">Estado</th>
-            <th className="px-3 py-3 text-center font-semibold">Acciones</th>
-          </tr>
-        </thead>
+    <div className="space-y-4">
+      <div className="space-y-3 lg:hidden">
+        {rows.length === 0 ? (
+          <div className="rounded-2xl border border-gray-100 bg-white px-4 py-6 text-center text-sm text-gray-600">
+            No hay verificaciones registradas.
+          </div>
+        ) : (
+          rows.map((row) => (
+            <div key={row.id} className="rounded-2xl border border-gray-100 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-950">{row.unidad_nombre}</p>
+                  <p className="text-sm text-gray-600">{row.placas || 'Sin placas'}</p>
+                </div>
+                <EstadoVerificacion dias={diasRestantes(row.proxima_verificacion)} />
+              </div>
 
-        <tbody className="divide-y divide-gray-100 bg-white">
-          {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-gray-50">
-              <td className="px-3 py-3">
-                <div className="font-semibold text-gray-950">{row.unidad_nombre}</div>
-                <div className="text-xs text-gray-600">{row.placas || 'Sin placas'}</div>
-              </td>
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <InfoItem label="Actual" value={fmtDate(row.fecha_verificacion)} />
+                <InfoItem label="Próxima" value={fmtDate(row.proxima_verificacion)} />
+                <InfoItem label="Folio" value={row.folio || '—'} />
+                <InfoItem
+                  label="Costo"
+                  value={row.costo !== null && row.costo !== undefined ? fmtMoney(row.costo) : '—'}
+                />
+              </div>
 
-              <td className="px-3 py-3 text-gray-900">
-                {fmtDate(row.fecha_verificacion)}
-              </td>
-
-              <td className="px-3 py-3 text-gray-900">
-                {fmtDate(row.proxima_verificacion)}
-              </td>
-
-              <td className="px-3 py-3 text-gray-900">{row.folio || '—'}</td>
-
-              <td className="px-3 py-3 text-right text-gray-900">
-                {row.costo !== null && row.costo !== undefined ? fmtMoney(row.costo) : '—'}
-              </td>
-
-              <td className="px-3 py-3 text-center">
+              <div className="mt-4">
                 {row.mantenimiento_id ? (
                   <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">
                     {row.mantenimiento_estado || 'Relacionado'}
@@ -459,39 +457,109 @@ function VerificacionesTable({ rows, onEdit, onDelete, onCreateMaintenance }) {
                     Sin mantenimiento
                   </span>
                 )}
-              </td>
+              </div>
 
-              <td className="px-3 py-3 text-center">
-                <EstadoVerificacion dias={diasRestantes(row.proxima_verificacion)} />
-              </td>
+              <div className="mt-4 grid grid-cols-3 gap-2">
+                <IconButton title="Crear mantenimiento" onClick={() => onCreateMaintenance(row)}>
+                  <CalendarCheck size={16} />
+                </IconButton>
 
-              <td className="px-3 py-3">
-                <div className="flex justify-center gap-2">
-                  <IconButton title="Crear mantenimiento" onClick={() => onCreateMaintenance(row)}>
-                    <CalendarCheck size={16} />
-                  </IconButton>
+                <IconButton title="Editar" onClick={() => onEdit(row)}>
+                  <Pencil size={16} />
+                </IconButton>
 
-                  <IconButton title="Editar" onClick={() => onEdit(row)}>
-                    <Pencil size={16} />
-                  </IconButton>
+                <IconButton title="Eliminar" danger onClick={() => onDelete(row.id)}>
+                  <Trash2 size={16} />
+                </IconButton>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
 
-                  <IconButton title="Eliminar" danger onClick={() => onDelete(row.id)}>
-                    <Trash2 size={16} />
-                  </IconButton>
-                </div>
-              </td>
+      <div className="hidden overflow-x-auto rounded-xl border border-gray-100 lg:block">
+        <table className="w-full text-left text-sm text-gray-900">
+          <thead className="bg-gray-50">
+            <tr className="border-b border-gray-200 text-gray-800">
+              <th className="px-3 py-3 font-semibold">Unidad</th>
+              <th className="px-3 py-3 font-semibold">Actual</th>
+              <th className="px-3 py-3 font-semibold">Próxima</th>
+              <th className="px-3 py-3 font-semibold">Folio</th>
+              <th className="px-3 py-3 text-right font-semibold">Costo</th>
+              <th className="px-3 py-3 text-center font-semibold">Mantenimiento</th>
+              <th className="px-3 py-3 text-center font-semibold">Estado</th>
+              <th className="px-3 py-3 text-center font-semibold">Acciones</th>
             </tr>
-          ))}
+          </thead>
 
-          {rows.length === 0 && (
-            <tr>
-              <td colSpan="8" className="px-3 py-10 text-center text-gray-600">
-                No hay verificaciones registradas.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {rows.map((row) => (
+              <tr key={row.id} className="hover:bg-gray-50">
+                <td className="px-3 py-3">
+                  <div className="font-semibold text-gray-950">{row.unidad_nombre}</div>
+                  <div className="text-xs text-gray-600">{row.placas || 'Sin placas'}</div>
+                </td>
+
+                <td className="px-3 py-3 text-gray-900">{fmtDate(row.fecha_verificacion)}</td>
+                <td className="px-3 py-3 text-gray-900">{fmtDate(row.proxima_verificacion)}</td>
+                <td className="px-3 py-3 text-gray-900">{row.folio || '—'}</td>
+                <td className="px-3 py-3 text-right text-gray-900">
+                  {row.costo !== null && row.costo !== undefined ? fmtMoney(row.costo) : '—'}
+                </td>
+
+                <td className="px-3 py-3 text-center">
+                  {row.mantenimiento_id ? (
+                    <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-800">
+                      {row.mantenimiento_estado || 'Relacionado'}
+                    </span>
+                  ) : (
+                    <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-bold text-gray-700">
+                      Sin mantenimiento
+                    </span>
+                  )}
+                </td>
+
+                <td className="px-3 py-3 text-center">
+                  <EstadoVerificacion dias={diasRestantes(row.proxima_verificacion)} />
+                </td>
+
+                <td className="px-3 py-3">
+                  <div className="flex justify-center gap-2">
+                    <IconButton title="Crear mantenimiento" onClick={() => onCreateMaintenance(row)}>
+                      <CalendarCheck size={16} />
+                    </IconButton>
+
+                    <IconButton title="Editar" onClick={() => onEdit(row)}>
+                      <Pencil size={16} />
+                    </IconButton>
+
+                    <IconButton title="Eliminar" danger onClick={() => onDelete(row.id)}>
+                      <Trash2 size={16} />
+                    </IconButton>
+                  </div>
+                </td>
+              </tr>
+            ))}
+
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan="8" className="px-3 py-10 text-center text-gray-600">
+                  No hay verificaciones registradas.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function InfoItem({ label, value }) {
+  return (
+    <div className="rounded-xl bg-gray-50 p-3">
+      <p className="text-xs font-medium text-gray-500">{label}</p>
+      <p className="mt-1 font-semibold text-gray-900">{value}</p>
     </div>
   );
 }

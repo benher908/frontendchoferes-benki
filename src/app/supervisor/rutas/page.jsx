@@ -281,8 +281,68 @@ export default function SupervisorRutasPage() {
           </Card>
 
           <Card title="Seguimiento" subtitle={`Rutas registradas para ${fmtDate(form.fecha)}`}>
-            <div className="overflow-x-auto rounded-xl border border-gray-100">
-              <table className="w-full text-left text-sm text-gray-900">
+            <div className="space-y-4">
+              <div className="space-y-3 lg:hidden">
+                {viajes.length === 0 ? (
+                  <div className="rounded-2xl border border-gray-100 bg-white px-4 py-6 text-center text-sm text-gray-600">
+                    Todavía no hay rutas asignadas para esta fecha.
+                  </div>
+                ) : (
+                  viajes.map((viaje) => (
+                    <div key={viaje.id} className="rounded-2xl border border-gray-100 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-gray-950">{viaje.ruta_nombre}</p>
+                          <p className="text-sm text-gray-600">{viaje.chofer_nombre}</p>
+                          <p className="text-xs text-gray-500">
+                            {viaje.unidad_nombre} · {viaje.placas || 'Sin placas'}
+                          </p>
+                        </div>
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${estadoClass(viaje.estado)}`}>
+                          {labelEstado(viaje.estado)}
+                        </span>
+                      </div>
+
+                      {Array.isArray(viaje.detalles) && viaje.detalles.length > 1 && (
+                        <div className="mt-3 space-y-1 rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
+                          {viaje.detalles
+                            .filter((detalle) => detalle.secuencia !== 1)
+                            .map((detalle) => (
+                              <div key={detalle.id}>
+                                {detalle.secuencia}. {detalle.descripcion}
+                              </div>
+                            ))}
+                        </div>
+                      )}
+
+                      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                        <InfoItem label="Horario" value={viaje.hora_programada || '—'} />
+                        <InfoItem label="Inicio" value={fmtDateTime(viaje.hora_inicio)} />
+                        <InfoItem label="Fin" value={fmtDateTime(viaje.hora_fin)} />
+                      </div>
+
+                      <div className="mt-4">
+                        {viaje.estado !== 'FINALIZADA' && viaje.estado !== 'CANCELADA' ? (
+                          <button
+                            type="button"
+                            onClick={() => cancelar(viaje)}
+                            className="w-full rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+                          >
+                            Cancelar
+                          </button>
+                        ) : (
+                          <div className="rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500">
+                            Sin acción disponible
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="hidden overflow-x-auto rounded-xl border border-gray-100 lg:block">
+                <table className="w-full text-left text-sm text-gray-900">
                 <thead className="bg-gray-50">
                   <tr className="border-b border-gray-200 text-gray-800">
                     <th className="px-3 py-3 font-semibold">Ruta</th>
@@ -295,9 +355,9 @@ export default function SupervisorRutasPage() {
                     <th className="px-3 py-3 text-right font-semibold">Acción</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 bg-white">
-                  {viajes.map((viaje) => (
-                    <tr key={viaje.id}>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {viajes.map((viaje) => (
+                      <tr key={viaje.id}>
                       <td className="px-3 py-3 font-medium">
                         <div>{viaje.ruta_nombre}</div>
                         {Array.isArray(viaje.detalles) && viaje.detalles.length > 1 && (
@@ -338,18 +398,19 @@ export default function SupervisorRutasPage() {
                           <span className="text-xs text-gray-500">Sin acción</span>
                         )}
                       </td>
-                    </tr>
-                  ))}
+                      </tr>
+                    ))}
 
-                  {viajes.length === 0 && (
-                    <tr>
-                      <td colSpan="8" className="px-3 py-8 text-center text-gray-600">
-                        Todavía no hay rutas asignadas para esta fecha.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                    {viajes.length === 0 && (
+                      <tr>
+                        <td colSpan="8" className="px-3 py-8 text-center text-gray-600">
+                          Todavía no hay rutas asignadas para esta fecha.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </Card>
         </section>
@@ -369,6 +430,15 @@ function estadoClass(estado) {
   if (estado === 'LISTA_PARA_RUTA') return 'bg-amber-100 text-amber-800';
   if (estado === 'CANCELADA') return 'bg-red-100 text-red-800';
   return 'bg-gray-100 text-gray-800';
+}
+
+function InfoItem({ label, value }) {
+  return (
+    <div className="rounded-xl bg-gray-50 p-3">
+      <p className="text-xs font-medium text-gray-500">{label}</p>
+      <p className="mt-1 font-semibold text-gray-900">{value || '—'}</p>
+    </div>
+  );
 }
 
 

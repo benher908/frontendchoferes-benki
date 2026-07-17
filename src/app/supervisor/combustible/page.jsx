@@ -103,7 +103,7 @@ export default function CombustiblePage() {
               <Select label="Ruta" value={filtros.ruta_id} onChange={(value) => setFiltros({ ...filtros, ruta_id: value })} options={catalogos.rutas} />
               <Select label="Unidad" value={filtros.unidad_id} onChange={(value) => setFiltros({ ...filtros, unidad_id: value })} options={catalogos.unidades} getLabel={(item) => `${item.nombre} - ${item.placas}`} />
               <Select label="Chofer" value={filtros.chofer_id} onChange={(value) => setFiltros({ ...filtros, chofer_id: value })} options={catalogos.choferes} />
-              <div className="flex items-end gap-2">
+              <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-end">
                 <button type="submit" className="flex-1 rounded-xl bg-[#F54927] px-4 py-3 text-sm font-semibold text-white hover:bg-[#F26449]">
                   Consultar
                 </button>
@@ -144,8 +144,42 @@ function tituloReporte(periodo, fecha) {
 
 function TablaCombustible({ rows }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-100">
-      <table className="w-full text-left text-sm text-gray-900">
+    <div className="space-y-4">
+      <div className="space-y-3 lg:hidden">
+        {rows.length === 0 ? (
+          <div className="rounded-2xl border border-gray-100 bg-white px-4 py-6 text-center text-sm text-gray-600">
+            No hay registros para esta consulta.
+          </div>
+        ) : (
+          rows.map((row) => (
+            <div key={row.id} className="rounded-2xl border border-gray-100 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-semibold text-gray-950">{fmtDate(row.fecha)}</p>
+                  <p className="text-sm text-gray-600">{row.unidad_nombre}</p>
+                  <p className="text-xs text-gray-500">{row.placas || 'Sin placas'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">Total</p>
+                  <p className="font-semibold text-gray-950">{fmtMoney(row.total_combustible || 0)}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <InfoCell label="KM.I" value={row.km_inicial} />
+                <InfoCell label="KM.F" value={row.km_final} />
+                <InfoCell label="KM.R" value={row.km_recorridos} />
+                <InfoCell label="Precio" value={fmtMoney(row.precio_litro || 0)} />
+                <InfoCell label="Litros" value={Number(row.litros_consumidos || row.litros || 0).toFixed(3)} />
+                <InfoCell label="Casetas" value={fmtMoney(row.casetas || 0)} />
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-xl border border-gray-100 lg:block">
+        <table className="w-full text-left text-sm text-gray-900">
         <thead className="bg-gray-50">
           <tr className="border-b border-gray-200 text-gray-800">
             <th className="px-3 py-3 font-semibold">FECHA</th>
@@ -159,9 +193,9 @@ function TablaCombustible({ rows }) {
             <th className="px-3 py-3 text-right font-semibold">CASETAS</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100 bg-white">
-          {rows.map((row) => (
-            <tr key={row.id} className="hover:bg-gray-50">
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {rows.map((row) => (
+              <tr key={row.id} className="hover:bg-gray-50">
               <td className="px-3 py-3">{fmtDate(row.fecha)}</td>
               <td className="px-3 py-3">
                 <div className="font-medium">{row.unidad_nombre}</div>
@@ -174,17 +208,27 @@ function TablaCombustible({ rows }) {
               <td className="px-3 py-3 text-right">{Number(row.litros_consumidos || row.litros || 0).toFixed(3)}</td>
               <td className="px-3 py-3 text-right font-semibold">{fmtMoney(row.total_combustible || 0)}</td>
               <td className="px-3 py-3 text-right">{fmtMoney(row.casetas || 0)}</td>
-            </tr>
-          ))}
-          {rows.length === 0 && (
-            <tr>
-              <td colSpan="9" className="px-3 py-8 text-center text-gray-600">
-                No hay registros para esta consulta.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan="9" className="px-3 py-8 text-center text-gray-600">
+                  No hay registros para esta consulta.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function InfoCell({ label, value }) {
+  return (
+    <div className="rounded-xl bg-gray-50 p-3">
+      <p className="text-xs font-medium text-gray-500">{label}</p>
+      <p className="mt-1 font-semibold text-gray-900">{value}</p>
     </div>
   );
 }

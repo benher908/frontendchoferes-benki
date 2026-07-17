@@ -120,7 +120,7 @@ export default function IncentivosPage() {
   return (
     <ProtectedRoute allowedRoles={['supervisor']}>
       <AppShell role="supervisor">
-        <header className="mb-6 flex flex-col justify-between gap-4 xl:flex-row xl:items-end">
+        <header className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Incentivos</h1>
             <p className="mt-1 text-gray-500">
@@ -128,11 +128,11 @@ export default function IncentivosPage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full gap-2 sm:grid-cols-2 xl:flex xl:w-auto xl:flex-wrap">
             <select
               value={periodo.mes}
               onChange={(e) => setPeriodo({ ...periodo, mes: Number(e.target.value) })}
-              className="rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#07AE8B] focus:ring-4 focus:ring-[#07AE8B]/10"
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#07AE8B] focus:ring-4 focus:ring-[#07AE8B]/10 xl:w-auto"
             >
               {MESES.map((mes) => (
                 <option key={mes.value} value={mes.value}>
@@ -145,7 +145,7 @@ export default function IncentivosPage() {
               type="number"
               value={periodo.anio}
               onChange={(e) => setPeriodo({ ...periodo, anio: Number(e.target.value) })}
-              className="w-28 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#07AE8B] focus:ring-4 focus:ring-[#07AE8B]/10"
+              className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#07AE8B] focus:ring-4 focus:ring-[#07AE8B]/10 sm:w-28"
             />
             <button
               type="button"
@@ -156,7 +156,7 @@ export default function IncentivosPage() {
                 })
               }
               disabled={rows.length === 0}
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 xl:w-auto"
             >
               <Download size={16} />
               Descargar Excel
@@ -165,7 +165,7 @@ export default function IncentivosPage() {
             <button
               onClick={cargar}
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60 xl:w-auto"
             >
               <Search size={16} />
               Consultar
@@ -174,7 +174,7 @@ export default function IncentivosPage() {
             <button
               onClick={recalcular}
               disabled={recalculando}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#F54927] px-4 py-2 text-sm font-semibold text-white hover:bg-[#F7674A] disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#F54927] px-4 py-2 text-sm font-semibold text-white hover:bg-[#F7674A] disabled:opacity-60 xl:w-auto"
             >
               <RefreshCcw size={16} />
               {recalculando ? 'Recalculando...' : 'Recalcular'}

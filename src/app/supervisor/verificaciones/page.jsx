@@ -266,7 +266,7 @@ export default function VerificacionesPage() {
                 onChange={(v) => setForm({ ...form, notas: v })}
               />
 
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <button
                   disabled={saving}
                   className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#07AE8B] px-4 py-3 text-sm font-semibold text-white hover:bg-[#069b7d] disabled:opacity-60"

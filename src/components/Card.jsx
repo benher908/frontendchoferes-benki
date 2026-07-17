@@ -1,6 +1,6 @@
 export default function Card({ title, subtitle, children, className = '', actions }) {
   return (
-    <section className={`rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-900/5 ${className}`}>
+    <section className={`min-w-0 overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-900/5 ${className}`}>
       {(title || subtitle || actions) && (
         <div className="mb-4 flex items-start justify-between gap-4">
           <div className="min-w-0">

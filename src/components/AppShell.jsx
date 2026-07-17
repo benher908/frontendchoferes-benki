@@ -56,7 +56,7 @@ export default function AppShell({ role, children }) {
   }
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-transparent">
       <aside className="fixed left-0 top-0 hidden h-screen w-72 border-r border-slate-200 bg-white/95 p-5 shadow-sm lg:block">
         <SidebarContent links={links} pathname={pathname} user={user} logout={logout} />
       </aside>
@@ -122,8 +122,10 @@ export default function AppShell({ role, children }) {
         </div>
       )}
 
-      <main className="lg:pl-72">
-        <div className="mx-auto max-w-7xl p-4 pb-24 sm:p-6 lg:p-8">{children}</div>
+      <main className="min-w-0 w-full max-w-full overflow-x-clip lg:pl-72">
+        <div className="mx-auto w-full min-w-0 max-w-7xl px-4 pb-24 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8">
+          {children}
+        </div>
       </main>
     </div>
   );

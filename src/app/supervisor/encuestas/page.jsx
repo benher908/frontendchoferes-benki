@@ -6,10 +6,40 @@ import AppShell from '@/components/AppShell';
 import Card from '@/components/Card';
 import { Input, Select } from '@/components/FormControls';
 import { api } from '@/lib/api';
-import { todayMexicoInput } from '@/lib/formatters';
+import { descargarExcelEncuestasMensuales } from '@/lib/excel';
 
-function todayDate() {
-  return todayMexicoInput();
+const MESES = [
+  { id: 1, label: 'Enero' },
+  { id: 2, label: 'Febrero' },
+  { id: 3, label: 'Marzo' },
+  { id: 4, label: 'Abril' },
+  { id: 5, label: 'Mayo' },
+  { id: 6, label: 'Junio' },
+  { id: 7, label: 'Julio' },
+  { id: 8, label: 'Agosto' },
+  { id: 9, label: 'Septiembre' },
+  { id: 10, label: 'Octubre' },
+  { id: 11, label: 'Noviembre' },
+  { id: 12, label: 'Diciembre' },
+];
+
+function currentPeriodo() {
+  const now = new Date();
+  return {
+    mes: now.getMonth() + 1,
+    anio: now.getFullYear(),
+  };
+}
+
+function getMonthRange(anio, mes) {
+  const start = new Date(anio, mes - 1, 1);
+  const end = new Date(anio, mes, 0);
+  const toIso = (value) => value.toISOString().slice(0, 10);
+
+  return {
+    desde: toIso(start),
+    hasta: toIso(end),
+  };
 }
 
 function scoreText(value) {
@@ -18,7 +48,9 @@ function scoreText(value) {
 }
 
 export default function SupervisorEncuestasPage() {
-  const [filters, setFilters] = useState({ fecha: todayDate(), chofer_id: '', ruta_id: '' });
+  const initialPeriodo = currentPeriodo();
+  const [filters, setFilters] = useState({ chofer_id: '', ruta_id: '' });
+  const [periodo, setPeriodo] = useState(initialPeriodo);
   const [catalogos, setCatalogos] = useState({ choferes: [], rutas: [] });
   const [data, setData] = useState({ encuestas: [], resumen_choferes: [], comentarios: [] });
   const [loading, setLoading] = useState(true);
@@ -34,9 +66,15 @@ export default function SupervisorEncuestasPage() {
     try {
       setLoading(true);
       setError('');
+      const rango = getMonthRange(periodo.anio, periodo.mes);
       const [catalogoRes, encuestasRes] = await Promise.all([
         api.catalogos(),
-        api.listarEncuestasInternas(filters),
+        api.listarEncuestasInternas({
+          ...filters,
+          fecha: '',
+          desde: rango.desde,
+          hasta: rango.hasta,
+        }),
       ]);
 
       setCatalogos({
@@ -71,6 +109,15 @@ export default function SupervisorEncuestasPage() {
     window.print();
   }
 
+  function exportarExcelMensual() {
+    descargarExcelEncuestasMensuales({
+      periodo,
+      resumenChoferes: data.resumen_choferes || [],
+      encuestas: data.encuestas || [],
+      comentarios: data.comentarios || [],
+    });
+  }
+
   const rutaQrUrl = qrRutaId && baseUrl ? `${baseUrl}/encuesta/ruta/${qrRutaId}` : '';
   const rutaQrImagen = rutaQrUrl
     ? `https://quickchart.io/qr?size=280&margin=2&text=${encodeURIComponent(rutaQrUrl)}`
@@ -95,12 +142,21 @@ export default function SupervisorEncuestasPage() {
 
         <section className="mb-6">
           <Card title="Filtros">
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-5">
+              <Select
+                label="Mes"
+                value={periodo.mes}
+                onChange={(v) => setPeriodo({ ...periodo, mes: Number(v) })}
+                options={MESES}
+                getLabel={(x) => x.label}
+              />
               <Input
-                label="Fecha"
-                type="date"
-                value={filters.fecha}
-                onChange={(v) => setFilters({ ...filters, fecha: v })}
+                label="Año"
+                type="number"
+                min="2024"
+                max="2100"
+                value={periodo.anio}
+                onChange={(v) => setPeriodo({ ...periodo, anio: Number(v || initialPeriodo.anio) })}
               />
               <Select
                 label="Chofer"
@@ -125,6 +181,16 @@ export default function SupervisorEncuestasPage() {
                   className="h-12 w-full rounded-2xl bg-[#F54927] px-4 text-sm font-bold text-white hover:bg-[#F7674A]"
                 >
                   Consultar
+                </button>
+              </div>
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={exportarExcelMensual}
+                  disabled={loading}
+                  className="h-12 w-full rounded-2xl border border-gray-300 bg-white px-4 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Exportar Excel encuestas
                 </button>
               </div>
             </div>
@@ -202,7 +268,10 @@ export default function SupervisorEncuestasPage() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <Card title="Encuestas por ruta">
+          <Card
+            title="Encuestas por ruta"
+            subtitle={`Resumen del mes ${MESES.find((item) => item.id === periodo.mes)?.label || periodo.mes} ${periodo.anio}.`}
+          >
             {loading ? (
               <p className="py-8 text-center text-sm text-gray-600">Cargando encuestas...</p>
             ) : (
@@ -265,9 +334,11 @@ export default function SupervisorEncuestasPage() {
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-700">
                     <div>Pedido completo: {scoreText(row.promedio_pedido_completo)}%</div>
-                    <div>Trato: {scoreText(row.promedio_trato_chofer)}</div>
-                    <div>Atencion: {scoreText(row.promedio_atencion_entrega)}</div>
-                    <div>Satisfaccion: {scoreText(row.promedio_satisfaccion_general)}</div>
+                    <div>Amabilidad: {scoreText(row.promedio_amabilidad_chofer)}</div>
+                    <div>Comunicación: {scoreText(row.promedio_claridad_comunicacion)}</div>
+                    <div>Cuidado entrega: {scoreText(row.promedio_cuidado_entrega)}</div>
+                    <div>Recepción correcta: {scoreText(row.promedio_facilidad_recepcion)}</div>
+                    <div>Servicio general: {scoreText(row.promedio_servicio_general)}</div>
                   </div>
                 </div>
               ))}

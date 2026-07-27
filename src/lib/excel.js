@@ -125,11 +125,12 @@ export function descargarExcelChofer({ resumen }) {
       'Km inicial': safe(r.km_inicial),
       'Km final': safe(r.km_final),
       Litros: safe(r.litros),
-      Rendimiento: safe(r.rendimiento),
+      'Gasto km/litro': safe(r.gasto_km_litro ?? r.rendimiento),
       'Cumple objetivo': boolText(r.cumple_objetivo),
       'Precio litro': safe(r.precio_litro),
       'Total mercancia': safe(r.total_mercancia),
       Casetas: safe(r.casetas),
+      'Foto tablero gasolina': safe(r.foto_tablero_gasolina_url),
       Notas: safe(r.notas),
     }))
   );
@@ -217,12 +218,68 @@ export function descargarExcelCombustibleDiario({ fecha, periodo = 'dia', rows }
       'KM.I': Number(r.km_inicial || 0),
       'KM.F': Number(r.km_final || 0),
       'KM.R': Number(r.km_recorridos || 0),
+      'GASTO KM/LITRO': Number((r.gasto_km_litro ?? r.rendimiento) || 0),
       'PRECIO UNITARIO': Number(r.precio_litro || 0),
       LITROS: Number(r.litros_consumidos || r.litros || 0),
       TOTAL: Number(r.total_combustible || 0),
       CASETAS: Number(r.casetas || 0),
+      'FOTO TABLERO GASOLINA': safe(r.foto_tablero_gasolina_url),
     }))
   );
 
   XLSX.writeFile(workbook, `combustible_${periodo}_${dateOnly(fecha)}.xlsx`);
+}
+
+export function descargarExcelEncuestasMensuales({
+  periodo,
+  resumenChoferes = [],
+  encuestas = [],
+  comentarios = [],
+}) {
+  const workbook = XLSX.utils.book_new();
+
+  const resumen = sortByDateDesc(resumenChoferes, 'chofer_nombre').map((row) => ({
+    PERIODO: `${safe(periodo?.anio)}-${String(periodo?.mes || '').padStart(2, '0')}`,
+    CHOFER: safe(row.chofer_nombre),
+    RESPUESTAS: Number(row.respuestas || 0),
+    'PROMEDIO GENERAL': Number(row.promedio_general || 0),
+    'PEDIDO COMPLETO %': Number(row.promedio_pedido_completo || 0),
+    AMABILIDAD: Number(row.promedio_amabilidad_chofer || 0),
+    COMUNICACION: Number(row.promedio_claridad_comunicacion || 0),
+    'CUIDADO ENTREGA': Number(row.promedio_cuidado_entrega || 0),
+    'RECEPCION CORRECTA': Number(row.promedio_facilidad_recepcion || 0),
+    'SERVICIO GENERAL': Number(row.promedio_servicio_general || 0),
+  }));
+
+  const detalle = sortByDateDesc(encuestas, 'fecha_servicio').map((row) => ({
+    FECHA: dateOnly(row.fecha_servicio),
+    RUTA: safe(row.ruta_nombre),
+    CHOFER: safe(row.chofer_nombre),
+    RESPUESTAS: Number(row.respuestas || 0),
+    'PROMEDIO GENERAL': Number(row.promedio_general || 0),
+    'PEDIDO COMPLETO %': Number(row.promedio_pedido_completo || 0),
+    AMABILIDAD: Number(row.promedio_amabilidad_chofer || 0),
+    COMUNICACION: Number(row.promedio_claridad_comunicacion || 0),
+    'CUIDADO ENTREGA': Number(row.promedio_cuidado_entrega || 0),
+    'RECEPCION CORRECTA': Number(row.promedio_facilidad_recepcion || 0),
+    'SERVICIO GENERAL': Number(row.promedio_servicio_general || 0),
+    ESTATUS: safe(row.estatus),
+  }));
+
+  const comentariosRows = sortByDateDesc(comentarios, 'created_at').map((row) => ({
+    FECHA: dateOnly(row.fecha_servicio || row.created_at),
+    CHOFER: safe(row.chofer_nombre),
+    RUTA: safe(row.ruta_nombre),
+    FOLIO: safe(row.folio_pedido),
+    COMENTARIOS: safe(row.comentarios),
+  }));
+
+  addSheet(workbook, 'Resumen choferes', resumen);
+  addSheet(workbook, 'Detalle encuestas', detalle);
+  addSheet(workbook, 'Comentarios', comentariosRows);
+
+  XLSX.writeFile(
+    workbook,
+    `encuestas_mensuales_${safe(periodo?.anio)}_${String(periodo?.mes || '').padStart(2, '0')}.xlsx`
+  );
 }

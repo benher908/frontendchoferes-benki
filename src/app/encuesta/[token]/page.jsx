@@ -8,11 +8,83 @@ import { Input, Textarea } from '@/components/FormControls';
 const INITIAL_FORM = {
   folio_pedido: '',
   pedido_completo: 1,
-  trato_chofer: 5,
-  atencion_entrega: 5,
-  satisfaccion_general: 5,
+  amabilidad_chofer: 5,
+  claridad_comunicacion: 5,
+  cuidado_entrega: 5,
+  facilidad_recepcion: 5,
+  servicio_general: 5,
   comentarios: '',
 };
+
+const MONTHS_EN = {
+  jan: '01',
+  feb: '02',
+  mar: '03',
+  apr: '04',
+  may: '05',
+  jun: '06',
+  jul: '07',
+  aug: '08',
+  sep: '09',
+  oct: '10',
+  nov: '11',
+  dec: '12',
+};
+
+function pad2(value) {
+  return String(value).padStart(2, '0');
+}
+
+function formatSurveyDate(encuesta) {
+  if (encuesta?.fecha_servicio_mx) {
+    return encuesta.fecha_servicio_mx;
+  }
+
+  const raw = String(
+    encuesta?.fecha_servicio ??
+      encuesta?.fecha ??
+      encuesta?.created_at ??
+      ''
+  ).trim();
+
+  if (!raw) return '—';
+
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+    return raw;
+  }
+
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    return `${day}/${month}/${year}`;
+  }
+
+  const englishMatch = raw.match(
+    /^(?:[A-Za-z]{3}\s)?([A-Za-z]{3})\s(\d{1,2})(?:\s(\d{4}))?$/
+  );
+  if (englishMatch) {
+    const [, monthText, day, year = '2026'] = englishMatch;
+    const month = MONTHS_EN[monthText.toLowerCase()];
+    if (month) {
+      return `${pad2(day)}/${month}/${year}`;
+    }
+  }
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(parsed);
+
+    const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${map.day}/${map.month}/${map.year}`;
+  }
+
+  return raw;
+}
 
 function ScoreGroup({ label, value, onChange }) {
   return (
@@ -85,8 +157,15 @@ export default function EncuestaPublicaPage({ params }) {
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-8">
       <div className="mx-auto max-w-2xl">
-        <Card title="Encuesta de entrega" subtitle="Ayudanos a evaluar la entrega y la atencion del chofer.">
-          {loading && <p className="py-8 text-center text-sm text-gray-600">Cargando encuesta...</p>}
+        <Card
+          title="Encuesta de entrega"
+          subtitle="Ayudanos a evaluar la entrega y la atencion del chofer."
+        >
+          {loading && (
+            <p className="py-8 text-center text-sm text-gray-600">
+              Cargando encuesta...
+            </p>
+          )}
 
           {!loading && error && (
             <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -103,9 +182,18 @@ export default function EncuestaPublicaPage({ params }) {
           {!loading && !error && encuesta && !done && (
             <form onSubmit={submit} className="space-y-5">
               <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
-                <p><span className="font-bold text-slate-900">Ruta:</span> {encuesta.ruta_nombre}</p>
-                <p><span className="font-bold text-slate-900">Fecha:</span> {encuesta.fecha_servicio}</p>
-                <p><span className="font-bold text-slate-900">Chofer:</span> {encuesta.chofer_nombre}</p>
+                <p>
+                  <span className="font-bold text-slate-900">Ruta:</span>{' '}
+                  {encuesta.ruta_nombre}
+                </p>
+                <p>
+                  <span className="font-bold text-slate-900">Fecha:</span>{' '}
+                  {formatSurveyDate(encuesta)}
+                </p>
+                <p>
+                  <span className="font-bold text-slate-900">Chofer:</span>{' '}
+                  {encuesta.chofer_nombre}
+                </p>
               </div>
 
               <Input
@@ -115,7 +203,9 @@ export default function EncuestaPublicaPage({ params }) {
               />
 
               <div>
-                <p className="mb-2 text-sm font-bold text-gray-800">El pedido se entrego completo?</p>
+                <p className="mb-2 text-sm font-bold text-gray-800">
+                  ¿El pedido se entrego completo?
+                </p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { value: 1, label: 'Si' },
@@ -124,7 +214,9 @@ export default function EncuestaPublicaPage({ params }) {
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => setForm({ ...form, pedido_completo: option.value })}
+                      onClick={() =>
+                        setForm({ ...form, pedido_completo: option.value })
+                      }
                       className={`h-11 rounded-2xl border text-sm font-bold transition ${
                         Number(form.pedido_completo) === option.value
                           ? 'border-[#07AE8B] bg-[#07AE8B] text-white'
@@ -137,22 +229,53 @@ export default function EncuestaPublicaPage({ params }) {
                 </div>
               </div>
 
+              <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
+                <p className="font-bold text-slate-900">Escala de respuesta</p>
+                <p className="mt-2">1 = Muy insatisfecho</p>
+                <p>2 = Insatisfecho</p>
+                <p>3 = Neutral</p>
+                <p>4 = Satisfecho</p>
+                <p>5 = Muy satisfecho</p>
+              </div>
+
               <ScoreGroup
-                label="Trato del chofer"
-                value={form.trato_chofer}
-                onChange={(value) => setForm({ ...form, trato_chofer: value })}
+                label="¿Que tan satisfecho esta con la amabilidad del chofer?"
+                value={form.amabilidad_chofer}
+                onChange={(value) =>
+                  setForm({ ...form, amabilidad_chofer: value })
+                }
               />
 
               <ScoreGroup
-                label="Atencion durante la entrega"
-                value={form.atencion_entrega}
-                onChange={(value) => setForm({ ...form, atencion_entrega: value })}
+                label="¿Que tan satisfecho esta con la claridad de la comunicacion durante la entrega?"
+                value={form.claridad_comunicacion}
+                onChange={(value) =>
+                  setForm({ ...form, claridad_comunicacion: value })
+                }
               />
 
               <ScoreGroup
-                label="Satisfaccion general con la entrega"
-                value={form.satisfaccion_general}
-                onChange={(value) => setForm({ ...form, satisfaccion_general: value })}
+                label="¿Que tan satisfecho esta con el cuidado con el que el chofer manejo y entrego su pedido?"
+                value={form.cuidado_entrega}
+                onChange={(value) =>
+                  setForm({ ...form, cuidado_entrega: value })
+                }
+              />
+
+              <ScoreGroup
+                label="¿Que tan satisfecho esta con la facilidad para identificar y recibir correctamente su pedido?"
+                value={form.facilidad_recepcion}
+                onChange={(value) =>
+                  setForm({ ...form, facilidad_recepcion: value })
+                }
+              />
+
+              <ScoreGroup
+                label="¿Que tan satisfecho esta en general con el servicio de entrega recibido?"
+                value={form.servicio_general}
+                onChange={(value) =>
+                  setForm({ ...form, servicio_general: value })
+                }
               />
 
               <Textarea

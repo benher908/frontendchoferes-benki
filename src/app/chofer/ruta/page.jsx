@@ -25,18 +25,34 @@ const initialCierre = {
   observaciones_fin: '',
 };
 
+function calcularGastoKmLitro(cierre) {
+  const kmInicial = Number(cierre.km_inicial || 0);
+  const kmFinal = Number(cierre.km_final || 0);
+  const litrosEncontrados = Number(cierre.litros_encontrados || 0);
+  const litrosCargados = Number(cierre.litros_cargados || 0);
+  const litrosDejados = Number(cierre.litros_dejados || 0);
+  const litrosConsumidos = litrosEncontrados + litrosCargados - litrosDejados;
+  const kmRecorridos = kmFinal - kmInicial;
+
+  if (kmRecorridos <= 0 || litrosConsumidos <= 0) return null;
+  return kmRecorridos / litrosConsumidos;
+}
+
 export default function ChoferRutaPage() {
   const [data, setData] = useState(null);
   const [puntualidadHoy, setPuntualidadHoy] = useState(null);
   const [cierre, setCierre] = useState(initialCierre);
   const [mercanciaRevisada, setMercanciaRevisada] = useState(true);
   const [fotoMercancia, setFotoMercancia] = useState(null);
+  const [fotoTableroGasolina, setFotoTableroGasolina] = useState(null);
+  const [fotoUltimaCaseta, setFotoUltimaCaseta] = useState(null);
   const [observacionesInicio, setObservacionesInicio] = useState('');
   const [notasLlegada, setNotasLlegada] = useState('');
   const [loading, setLoading] = useState(false);
   const [starting, setStarting] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [registeringArrival, setRegisteringArrival] = useState(false);
+  const [uploadingUltimaCaseta, setUploadingUltimaCaseta] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -189,6 +205,8 @@ export default function ChoferRutaPage() {
     setSuccess('');
 
     try {
+      const position = await obtenerUbicacionActual();
+
       await api.finalizarViaje(viajeActual.id, {
         km_inicial: cierre.km_inicial ? Number(cierre.km_inicial) : null,
         km_final: Number(cierre.km_final),
@@ -203,15 +221,60 @@ export default function ChoferRutaPage() {
         detalle_falla: cierre.detalle_falla || null,
         notas_limpieza: cierre.notas_limpieza || null,
         observaciones_fin: cierre.observaciones_fin || null,
+        latitud: position.coords.latitude,
+        longitud: position.coords.longitude,
       });
 
-      setSuccess('Ruta finalizada correctamente');
+      let successMessage = 'Ruta finalizada correctamente';
+
+      if (fotoTableroGasolina) {
+        try {
+          const formData = new FormData();
+          formData.append('foto', fotoTableroGasolina);
+          await api.subirFotoTableroGasolina(viajeActual.id, formData);
+          successMessage = 'Ruta finalizada y foto del tablero guardada correctamente';
+        } catch (uploadErr) {
+          successMessage = `Ruta finalizada, pero no se pudo subir la foto del tablero: ${uploadErr.message}`;
+        }
+      }
+
+      setSuccess(successMessage);
       setCierre(initialCierre);
+      setFotoTableroGasolina(null);
       await cargar();
     } catch (err) {
       setError(err.message || 'No se pudo finalizar la ruta');
     } finally {
       setFinishing(false);
+    }
+  }
+
+  async function registrarFotoUltimaCaseta() {
+    if (!viajeActual?.id || viajeActual.estado !== 'EN_RUTA') {
+      setError('Solo puedes registrar la última caseta cuando la ruta está en curso');
+      return;
+    }
+
+    if (!fotoUltimaCaseta) {
+      setError('Primero toma la foto de la última caseta');
+      return;
+    }
+
+    setUploadingUltimaCaseta(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const formData = new FormData();
+      formData.append('foto', fotoUltimaCaseta);
+      await api.subirFotoUltimaCaseta(viajeActual.id, formData);
+      setSuccess('Foto de última caseta registrada correctamente');
+      setFotoUltimaCaseta(null);
+      await cargar();
+    } catch (err) {
+      setError(err.message || 'No se pudo registrar la foto de la última caseta');
+    } finally {
+      setUploadingUltimaCaseta(false);
     }
   }
 
@@ -347,6 +410,7 @@ export default function ChoferRutaPage() {
                   <Info label="Km actual sugerido" value={cierre.km_inicial || 'Sin dato'} />
                   <Info label="Litros encontrados sugeridos" value={cierre.litros_encontrados || 'Sin dato'} />
                   <Info label="Precio litro sugerido" value={cierre.precio_litro ? fmtMoney(cierre.precio_litro) : 'Sin dato'} />
+                  <Info label="Gasto km/litro anterior" value={ultimoCierreOperativo?.rendimiento ? `${Number(ultimoCierreOperativo.rendimiento).toFixed(3)} km/l` : 'Sin dato'} />
                   <Info label="Último cierre" value={ultimoCierreOperativo ? `${fmtDate(ultimoCierreOperativo.fecha)} - ${ultimoCierreOperativo.ruta_nombre}` : 'Sin historial'} />
                 </div>
               </Card>
@@ -386,6 +450,50 @@ export default function ChoferRutaPage() {
                 </div>
               </Card>
 
+              <Card
+                title="Última caseta"
+                subtitle="Registra esta evidencia antes de regresar al CEDIS. No finaliza la ruta."
+              >
+                <div className="space-y-3">
+                  <Info
+                    label="Estado de evidencia"
+                    value={viajeActual.foto_ultima_caseta_url ? 'Registrada' : 'Pendiente'}
+                  />
+                  <Info
+                    label="Hora registrada"
+                    value={fmtDateTime(viajeActual.foto_ultima_caseta_at)}
+                  />
+                  {viajeActual.foto_ultima_caseta_url && (
+                    <a
+                      href={viajeActual.foto_ultima_caseta_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block rounded-xl border border-gray-200 px-3 py-2 text-center text-sm font-semibold text-[#1F6FEB]"
+                    >
+                      Ver foto registrada
+                    </a>
+                  )}
+                  {!viajeActual.foto_ultima_caseta_url && (
+                    <>
+                      <CameraOnlyPicker
+                        label="Foto de última caseta"
+                        file={fotoUltimaCaseta}
+                        onChange={setFotoUltimaCaseta}
+                        description="Captura esta evidencia directamente con la cámara antes de volver al CEDIS."
+                      />
+                      <button
+                        type="button"
+                        onClick={registrarFotoUltimaCaseta}
+                        disabled={uploadingUltimaCaseta || viajeActual.estado !== 'EN_RUTA'}
+                        className="w-full rounded-xl bg-[#1F6FEB] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1859be] disabled:opacity-60"
+                      >
+                        {uploadingUltimaCaseta ? 'Guardando evidencia...' : 'Registrar última caseta'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </Card>
+
               <Card title="Checklist previo">
                 <div className="space-y-3">
                   <Info label="Check del día" value={ultimoCheck ? `Sí (#${ultimoCheck.id})` : 'No'} />
@@ -421,6 +529,10 @@ export default function ChoferRutaPage() {
 
             <Card title="Finalizar ruta" subtitle="Captura los datos finales del recorrido.">
               <form onSubmit={finalizarRuta} className="space-y-4">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                  Solo podrás finalizar la ruta cuando estés físicamente dentro del CEDIS y permitas tu ubicación.
+                </div>
+
                 <div className="grid gap-3 md:grid-cols-2">
                   <Input label="Km actual" type="number" value={cierre.km_inicial} onChange={(value) => setCierre({ ...cierre, km_inicial: value })} />
                   <Input label="Km final" type="number" value={cierre.km_final} onChange={(value) => setCierre({ ...cierre, km_final: value })} />
@@ -440,6 +552,17 @@ export default function ChoferRutaPage() {
                 <div className="grid gap-3 md:grid-cols-1">
                   <Input label="Casetas" type="number" step="0.01" value={cierre.casetas} onChange={(value) => setCierre({ ...cierre, casetas: value })} />
                 </div>
+
+                <div className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
+                  <p>Gasto km/litro calculado: {calcularGastoKmLitro(cierre) ? `${calcularGastoKmLitro(cierre).toFixed(3)} km/l` : 'Completa km y litros para calcularlo'}</p>
+                </div>
+
+                <EvidencePicker
+                  label="Foto del tablero de gasolina"
+                  file={fotoTableroGasolina}
+                  onChange={setFotoTableroGasolina}
+                  description="Toma o adjunta la foto del tablero para respaldar el cierre de combustible."
+                />
 
                 <ToggleCard
                   label="Limpieza realizada"
@@ -555,6 +678,53 @@ function EvidencePicker({ label, file, onChange, description }) {
           Elegir galería
         </button>
       </div>
+
+      {file && (
+        <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-white/80 px-3 py-2 text-xs text-[#04745f]">
+          <span className="truncate font-medium">{file.name}</span>
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="shrink-0 rounded-lg border border-gray-200 px-2 py-1 text-gray-700"
+          >
+            Quitar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CameraOnlyPicker({ label, file, onChange, description }) {
+  const cameraInputRef = useRef(null);
+
+  return (
+    <div className={`rounded-2xl border p-4 ${file ? 'border-[#07AE8B] bg-[#07AE8B]/5' : 'border-gray-200 bg-white'}`}>
+      <div className="mb-3">
+        <p className="text-sm font-semibold text-gray-950">{label}</p>
+        {description && <p className="mt-1 text-xs text-gray-500">{description}</p>}
+      </div>
+
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          const selected = e.target.files?.[0];
+          if (selected) onChange(selected);
+        }}
+      />
+
+      <button
+        type="button"
+        onClick={() => cameraInputRef.current?.click()}
+        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-gray-900 px-3 py-2 text-sm font-bold text-white"
+      >
+        <Camera size={18} />
+        {file ? 'Tomar otra foto' : 'Tomar foto'}
+      </button>
 
       {file && (
         <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-white/80 px-3 py-2 text-xs text-[#04745f]">

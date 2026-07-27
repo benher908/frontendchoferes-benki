@@ -464,8 +464,22 @@ export default function RegistroDiarioPage() {
                           <p>Km final: {cierreChoferRendimiento.km_final ?? '—'}</p>
                           <p>Litros cargados: {cierreChoferRendimiento.litros_cargados ?? '—'}</p>
                           <p>Litros dejados: {cierreChoferRendimiento.litros_dejados ?? '—'}</p>
+                          <p>Gasto km/litro: {cierreChoferRendimiento.gasto_km_litro ? Number(cierreChoferRendimiento.gasto_km_litro).toFixed(3) : '—'}</p>
                           <p>Mercancía: {fmtMoney(cierreChoferRendimiento.total_mercancia || 0)}</p>
                           <p>Casetas: {fmtMoney(cierreChoferRendimiento.casetas || 0)}</p>
+                          <p>
+                            Foto tablero:{' '}
+                            {cierreChoferRendimiento.foto_tablero_gasolina_url ? (
+                              <a
+                                href={cierreChoferRendimiento.foto_tablero_gasolina_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="font-semibold text-[#1F6FEB]"
+                              >
+                                Ver foto
+                              </a>
+                            ) : 'Sin foto'}
+                          </p>
                         </div>
                       ) : (
                         <p className="mt-2 text-gray-600">
@@ -752,6 +766,8 @@ function RendimientoTable({ rows }) {
               <th className="px-3 py-3 text-right font-semibold">Encontrados</th>
               <th className="px-3 py-3 text-right font-semibold">Dejados</th>
               <th className="px-3 py-3 text-right font-semibold">Mercancía</th>
+              <th className="px-3 py-3 text-right font-semibold">Gasto km/litro</th>
+              <th className="px-3 py-3 text-center font-semibold">Tablero</th>
               <th className="px-3 py-3 text-center font-semibold">Cumple km/l objetivo</th>
             </tr>
           </thead>
@@ -797,6 +813,25 @@ function RendimientoTable({ rows }) {
                   {fmtMoney(r.total_mercancia)}
                 </td>
 
+                <td className="whitespace-nowrap px-3 py-3 text-right text-gray-900">
+                  {r.gasto_km_litro !== undefined && r.gasto_km_litro !== null
+                    ? Number(r.gasto_km_litro).toFixed(3)
+                    : '—'}
+                </td>
+
+                <td className="whitespace-nowrap px-3 py-3 text-center text-gray-900">
+                  {r.foto_tablero_gasolina_url ? (
+                    <a
+                      href={r.foto_tablero_gasolina_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-semibold text-[#1F6FEB]"
+                    >
+                      Ver foto
+                    </a>
+                  ) : '—'}
+                </td>
+
                 <td className="whitespace-nowrap px-3 py-3 text-center">
                   <span
                     className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${r.cumple_objetivo
@@ -812,7 +847,7 @@ function RendimientoTable({ rows }) {
 
             {rows.length === 0 && (
               <tr>
-                <td colSpan="10" className="px-3 py-8 text-center text-gray-700">
+                <td colSpan="12" className="px-3 py-8 text-center text-gray-700">
                   Sin registros.
                 </td>
               </tr>
@@ -880,9 +915,11 @@ function ServicioEntregaView({ data }) {
               </div>
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-700">
                 <div>Pedido completo: {Number(row.promedio_pedido_completo || 0).toFixed(2)}%</div>
-                <div>Trato: {Number(row.promedio_trato_chofer || 0).toFixed(2)}</div>
-                <div>Atención: {Number(row.promedio_atencion_entrega || 0).toFixed(2)}</div>
-                <div>Satisfacción: {Number(row.promedio_satisfaccion_general || 0).toFixed(2)}</div>
+                <div>Amabilidad: {Number(row.promedio_amabilidad_chofer || 0).toFixed(2)}</div>
+                <div>Comunicación: {Number(row.promedio_claridad_comunicacion || 0).toFixed(2)}</div>
+                <div>Cuidado entrega: {Number(row.promedio_cuidado_entrega || 0).toFixed(2)}</div>
+                <div>Recepción correcta: {Number(row.promedio_facilidad_recepcion || 0).toFixed(2)}</div>
+                <div>Servicio general: {Number(row.promedio_servicio_general || 0).toFixed(2)}</div>
               </div>
             </div>
           ))}

@@ -160,6 +160,18 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  subirFotoTableroGasolina: (id, formData) =>
+    apiFetch(`/rutas-viajes/${id}/foto-tablero-gasolina`, {
+      method: 'POST',
+      body: formData,
+    }),
+
+  subirFotoUltimaCaseta: (id, formData) =>
+    apiFetch(`/rutas-viajes/${id}/foto-ultima-caseta`, {
+      method: 'POST',
+      body: formData,
+    }),
+
   cancelarViaje: (id, payload = {}) =>
     apiFetch(`/rutas-viajes/${id}/cancelar`, {
       method: 'PATCH',

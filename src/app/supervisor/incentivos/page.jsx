@@ -37,6 +37,8 @@ function fmtPercentFromScore(score) {
   return `${(Number(score || 0) * 100).toFixed(2)}%`;
 }
 
+const SCORE_MINIMO_INCENTIVO = 0.8;
+
 export default function IncentivosPage() {
   const [periodo, setPeriodo] = useState(currentPeriodo());
   const [rows, setRows] = useState([]);
@@ -125,6 +127,9 @@ export default function IncentivosPage() {
             <h1 className="text-2xl font-bold text-gray-900">Incentivos</h1>
             <p className="mt-1 text-gray-500">
               Consulta y recalcula el progreso mensual de incentivos por chofer.
+            </p>
+            <p className="mt-2 text-sm font-medium text-amber-700">
+              Los choferes con menos de 80% no generan incentivo.
             </p>
           </div>
 
@@ -314,7 +319,10 @@ function IncentivosTable({ rows, onPreview }) {
               </td>
 
               <td className="whitespace-nowrap px-3 py-3 text-right font-semibold text-gray-950">
-                {fmtMoney(row.monto)}
+                <div>{fmtMoney(row.monto)}</div>
+                {Number(row.score_total || 0) < SCORE_MINIMO_INCENTIVO && (
+                  <div className="text-xs font-medium text-rose-600">Bloqueado por bajo desempeño</div>
+                )}
               </td>
 
               <td className="px-3 py-3 text-center">
@@ -353,6 +361,11 @@ function DetallePreview({ data }) {
           <MiniMetric label="Total" value={`${data.porcentaje}%`} />
           <MiniMetric label="Monto" value={fmtMoney(data.monto)} />
         </div>
+        {Number(data.score_total || 0) < SCORE_MINIMO_INCENTIVO && (
+          <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
+            Este chofer no genera incentivo porque su resultado quedó por debajo del 80%.
+          </div>
+        )}
       </div>
 
       <Rubro

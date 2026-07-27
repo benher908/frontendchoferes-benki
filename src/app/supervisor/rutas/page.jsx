@@ -319,6 +319,24 @@ export default function SupervisorRutasPage() {
                         <InfoItem label="Horario" value={viaje.hora_programada || '—'} />
                         <InfoItem label="Inicio" value={fmtDateTime(viaje.hora_inicio)} />
                         <InfoItem label="Fin" value={fmtDateTime(viaje.hora_fin)} />
+                        <InfoItem label="Hora última caseta" value={fmtDateTime(viaje.foto_ultima_caseta_at)} />
+                      </div>
+
+                      <div className="mt-3">
+                        {viaje.foto_ultima_caseta_url ? (
+                          <a
+                            href={viaje.foto_ultima_caseta_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block rounded-lg border border-gray-200 px-3 py-2 text-center text-sm font-semibold text-[#1F6FEB]"
+                          >
+                            Ver foto de última caseta
+                          </a>
+                        ) : (
+                          <div className="rounded-lg bg-gray-50 px-3 py-2 text-center text-xs text-gray-500">
+                            Aún no se registra la foto de última caseta
+                          </div>
+                        )}
                       </div>
 
                       <div className="mt-4">
@@ -352,6 +370,7 @@ export default function SupervisorRutasPage() {
                     <th className="px-3 py-3 font-semibold">Horario</th>
                     <th className="px-3 py-3 font-semibold">Inicio</th>
                     <th className="px-3 py-3 font-semibold">Fin</th>
+                    <th className="px-3 py-3 font-semibold">Última caseta</th>
                     <th className="px-3 py-3 text-right font-semibold">Acción</th>
                   </tr>
                 </thead>
@@ -385,6 +404,23 @@ export default function SupervisorRutasPage() {
                       <td className="px-3 py-3">{viaje.hora_programada || '—'}</td>
                       <td className="px-3 py-3">{fmtDateTime(viaje.hora_inicio)}</td>
                       <td className="px-3 py-3">{fmtDateTime(viaje.hora_fin)}</td>
+                      <td className="px-3 py-3">
+                        <div className="space-y-1 text-xs text-gray-600">
+                          <div>{fmtDateTime(viaje.foto_ultima_caseta_at)}</div>
+                          {viaje.foto_ultima_caseta_url ? (
+                            <a
+                              href={viaje.foto_ultima_caseta_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-semibold text-[#1F6FEB]"
+                            >
+                              Ver foto
+                            </a>
+                          ) : (
+                            <span>Sin foto</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-3 py-3 text-right">
                         {viaje.estado !== 'FINALIZADA' && viaje.estado !== 'CANCELADA' ? (
                           <button
@@ -403,7 +439,7 @@ export default function SupervisorRutasPage() {
 
                     {viajes.length === 0 && (
                       <tr>
-                        <td colSpan="8" className="px-3 py-8 text-center text-gray-600">
+                        <td colSpan="9" className="px-3 py-8 text-center text-gray-600">
                           Todavía no hay rutas asignadas para esta fecha.
                         </td>
                       </tr>

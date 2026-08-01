@@ -77,14 +77,12 @@ function parseMysqlDateTime(value) {
   const [, year, month, day, hour = '00', minute = '00', second = '00'] = match;
 
   return new Date(
-    Date.UTC(
-      Number(year),
-      Number(month) - 1,
-      Number(day),
-      Number(hour),
-      Number(minute),
-      Number(second)
-    )
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+    Number(second)
   );
 }
 
@@ -100,7 +98,31 @@ export function fmtDateTime(value) {
   return date.toLocaleString('es-MX', {
     dateStyle: 'medium',
     timeStyle: 'short',
-    timeZone: 'UTC',
+    timeZone: 'America/Mexico_City',
+  });
+}
+
+export function fmtTime(value) {
+  if (!value) return '—';
+
+  const text = String(value).trim();
+  const timeMatch = text.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+
+  if (timeMatch) {
+    const [, hour, minute] = timeMatch;
+    return `${hour}:${minute}`;
+  }
+
+  const date = parseMysqlDateTime(value);
+
+  if (!date || Number.isNaN(date.getTime())) {
+    return text;
+  }
+
+  return date.toLocaleTimeString('es-MX', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Mexico_City',
   });
 }
 

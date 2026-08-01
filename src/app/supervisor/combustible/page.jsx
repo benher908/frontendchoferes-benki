@@ -169,6 +169,7 @@ function TablaCombustible({ rows }) {
                 <InfoCell label="KM.I" value={row.km_inicial} />
                 <InfoCell label="KM.F" value={row.km_final} />
                 <InfoCell label="KM.R" value={row.km_recorridos} />
+                <InfoCell label="Gasto km/litro" value={formatKmLitro(row)} />
                 <InfoCell label="Precio" value={fmtMoney(row.precio_litro || 0)} />
                 <InfoCell label="Litros" value={Number(row.litros_consumidos || row.litros || 0).toFixed(3)} />
                 <InfoCell label="Casetas" value={fmtMoney(row.casetas || 0)} />
@@ -187,6 +188,7 @@ function TablaCombustible({ rows }) {
             <th className="px-3 py-3 text-right font-semibold">KM.I</th>
             <th className="px-3 py-3 text-right font-semibold">KM.F</th>
             <th className="px-3 py-3 text-right font-semibold">KM.R</th>
+            <th className="px-3 py-3 text-right font-semibold">GASTO KM/LITRO</th>
             <th className="px-3 py-3 text-right font-semibold">PRECIO UNITARIO</th>
             <th className="px-3 py-3 text-right font-semibold">LITROS</th>
             <th className="px-3 py-3 text-right font-semibold">TOTAL</th>
@@ -204,6 +206,7 @@ function TablaCombustible({ rows }) {
               <td className="px-3 py-3 text-right">{row.km_inicial}</td>
               <td className="px-3 py-3 text-right">{row.km_final}</td>
               <td className="px-3 py-3 text-right">{row.km_recorridos}</td>
+              <td className="px-3 py-3 text-right">{formatKmLitro(row)}</td>
               <td className="px-3 py-3 text-right">{fmtMoney(row.precio_litro || 0)}</td>
               <td className="px-3 py-3 text-right">{Number(row.litros_consumidos || row.litros || 0).toFixed(3)}</td>
               <td className="px-3 py-3 text-right font-semibold">{fmtMoney(row.total_combustible || 0)}</td>
@@ -212,7 +215,7 @@ function TablaCombustible({ rows }) {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan="9" className="px-3 py-8 text-center text-gray-600">
+                <td colSpan="10" className="px-3 py-8 text-center text-gray-600">
                   No hay registros para esta consulta.
                 </td>
               </tr>
@@ -222,6 +225,11 @@ function TablaCombustible({ rows }) {
       </div>
     </div>
   );
+}
+
+function formatKmLitro(row) {
+  const value = Number((row.gasto_km_litro ?? row.rendimiento) || 0);
+  return Number.isFinite(value) ? value.toFixed(3) : '0.000';
 }
 
 function InfoCell({ label, value }) {

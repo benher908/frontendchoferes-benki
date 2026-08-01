@@ -1,13 +1,13 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppShell from '@/components/AppShell';
 import Card from '@/components/Card';
 import { api } from '@/lib/api';
 import { fmtDate, fmtMoney } from '@/lib/formatters';
-import { CalendarCheck, Save, Wrench } from 'lucide-react';
+import { Save, Wrench } from 'lucide-react';
 
 const initialForm = {
   unidad_id: '',
@@ -41,11 +41,6 @@ function MantenimientosPageContent() {
 
   const verificacionIdPreseleccionada = searchParams.get('verificacion_id') || '';
   const unidadIdPreseleccionada = searchParams.get('unidad_id') || '';
-
-  const verificacionesDisponibles = useMemo(() => {
-    if (!form.unidad_id) return verificaciones;
-    return verificaciones.filter((item) => String(item.unidad_id) === String(form.unidad_id));
-  }, [form.unidad_id, verificaciones]);
 
   async function cargar() {
     try {
@@ -160,36 +155,27 @@ function MantenimientosPageContent() {
         <header className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Mantenimientos</h1>
           <p className="mt-1 text-gray-500">
-            Crea y da seguimiento a mantenimientos ligados a verificaciones y unidades.
+            Crea y da seguimiento a mantenimientos por unidad.
           </p>
         </header>
 
         {error && <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
         {success && <div className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div>}
 
-        <section className="mb-6 grid gap-4 md:grid-cols-3">
+        <section className="mb-6 grid gap-4 md:grid-cols-2">
           <MetricCard title="Unidades" value={unidades.length} subtitle="Disponibles para mantenimiento" icon={<Wrench size={22} />} />
-          <MetricCard title="Verificaciones" value={verificaciones.length} subtitle="Disponibles para relacionar" icon={<CalendarCheck size={22} />} />
           <MetricCard title="Mantenimientos" value={mantenimientos.length} subtitle="Registros actuales" icon={<Wrench size={22} />} />
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[420px_1fr]">
-          <Card title="Crear mantenimiento" subtitle="Si vienes desde verificaciones, la unidad y verificación se precargan.">
+          <Card title="Crear mantenimiento" subtitle="Registra el mantenimiento de la unidad.">
             <form onSubmit={guardar} className="space-y-4">
               <Select
                 label="Unidad"
                 value={form.unidad_id}
-                onChange={(value) => setForm({ ...form, unidad_id: value, verificacion_id: '' })}
+                onChange={(value) => setForm({ ...form, unidad_id: value })}
                 options={unidades}
                 getLabel={(item) => `${item.nombre} - ${item.placas}`}
-              />
-
-              <Select
-                label="Verificación relacionada"
-                value={form.verificacion_id}
-                onChange={(value) => setForm({ ...form, verificacion_id: value })}
-                options={verificacionesDisponibles}
-                getLabel={(item) => `${item.unidad_nombre} · ${fmtDate(item.fecha_verificacion)} · ${item.folio || `ID ${item.id}`}`}
               />
 
               <Select
@@ -199,7 +185,6 @@ function MantenimientosPageContent() {
                 options={[
                   { id: 'PREVENTIVO', nombre: 'PREVENTIVO' },
                   { id: 'CORRECTIVO', nombre: 'CORRECTIVO' },
-                  { id: 'VERIFICACION', nombre: 'VERIFICACION' },
                   { id: 'OTRO', nombre: 'OTRO' },
                 ]}
                 getValue={(item) => item.id}
@@ -277,7 +262,6 @@ function MantenimientosTable({ rows, onAction }) {
             <th className="px-3 py-3 font-semibold">Tipo</th>
             <th className="px-3 py-3 font-semibold">Estado</th>
             <th className="px-3 py-3 font-semibold">Programada</th>
-            <th className="px-3 py-3 font-semibold">Verificación</th>
             <th className="px-3 py-3 text-right font-semibold">Costo</th>
             <th className="px-3 py-3 text-center font-semibold">Acciones</th>
           </tr>
@@ -292,9 +276,6 @@ function MantenimientosTable({ rows, onAction }) {
               <td className="px-3 py-3">{row.tipo}</td>
               <td className="px-3 py-3"><EstadoBadge estado={row.estado} /></td>
               <td className="px-3 py-3">{fmtDate(row.fecha_programada)}</td>
-              <td className="px-3 py-3">
-                {row.verificacion_id ? `${fmtDate(row.fecha_verificacion)} / ${fmtDate(row.proxima_verificacion)}` : 'Sin relación'}
-              </td>
               <td className="px-3 py-3 text-right">{row.costo !== null && row.costo !== undefined ? fmtMoney(row.costo) : '—'}</td>
               <td className="px-3 py-3">
                 <div className="flex flex-wrap justify-center gap-2">
@@ -313,7 +294,7 @@ function MantenimientosTable({ rows, onAction }) {
           ))}
           {rows.length === 0 && (
             <tr>
-              <td colSpan="7" className="px-3 py-10 text-center text-gray-600">
+              <td colSpan="6" className="px-3 py-10 text-center text-gray-600">
                 No hay mantenimientos registrados.
               </td>
             </tr>

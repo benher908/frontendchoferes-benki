@@ -58,7 +58,7 @@ export default function ChequeosSupervisorPage() {
   const [filtros, setFiltros] = useState({
     chofer_id: '',
     unidad_id: '',
-    tipo: '',
+    tipo: 'chofer',
     fecha_desde: '',
     fecha_hasta: '',
   });
@@ -145,7 +145,7 @@ export default function ChequeosSupervisorPage() {
     setFiltros({
       chofer_id: '',
       unidad_id: '',
-      tipo: '',
+      tipo: 'chofer',
       fecha_desde: '',
       fecha_hasta: '',
     });
@@ -175,6 +175,16 @@ export default function ChequeosSupervisorPage() {
           : item
       )
     );
+  }
+
+  function seleccionarChofer(choferId) {
+    const chofer = catalogos.choferes.find((item) => String(item.id) === String(choferId));
+
+    setForm((prev) => ({
+      ...prev,
+      chofer_id: choferId,
+      unidad_id: chofer?.unidad_default_id ? String(chofer.unidad_default_id) : prev.unidad_id,
+    }));
   }
 
   async function cargarChequeoEspejo() {
@@ -223,6 +233,21 @@ export default function ChequeosSupervisorPage() {
       setDetalle(data);
     } catch (err) {
       setError(err.message || 'No se pudo cargar el detalle');
+    }
+  }
+
+  async function marcarRevisado(id) {
+    try {
+      setError('');
+      await api.revisarChequeo(id);
+      toast.success('Chequeo marcado como revisado');
+      setSuccess('Chequeo marcado como revisado');
+      setDetalle((prev) => prev && Number(prev.id) === Number(id)
+        ? { ...prev, verificado_supervisor: 1, verificado_at: new Date().toISOString() }
+        : prev);
+      await cargarChequeos();
+    } catch (err) {
+      setError(err.message || 'No se pudo marcar el chequeo como revisado');
     }
   }
 
@@ -365,7 +390,7 @@ export default function ChequeosSupervisorPage() {
               <Select
                 label="Chofer"
                 value={form.chofer_id}
-                onChange={(v) => setForm({ ...form, chofer_id: v })}
+                onChange={seleccionarChofer}
                 options={catalogos.choferes}
                 getLabel={(x) => `${x.nombre}${x.ruta_nombre ? ` - ${x.ruta_nombre}` : ''}`}
               />
@@ -533,13 +558,13 @@ export default function ChequeosSupervisorPage() {
               {loading ? (
                 <p className="py-8 text-center text-gray-600">Cargando chequeos...</p>
               ) : (
-                <ChequeosTable rows={chequeos} onDetalle={verDetalle} />
+                <ChequeosTable rows={chequeos} onDetalle={verDetalle} onRevisar={marcarRevisado} />
               )}
             </Card>
 
             {detalle && (
               <Card title="Detalle del chequeo">
-                <DetalleChequeo data={detalle} onClose={() => setDetalle(null)} />
+                <DetalleChequeo data={detalle} onClose={() => setDetalle(null)} onRevisar={marcarRevisado} />
               </Card>
             )}
           </div>
@@ -655,7 +680,7 @@ function Checklist({ itemsAgrupados, items, actualizarItem }) {
   );
 }
 
-function ChequeosTable({ rows, onDetalle }) {
+function ChequeosTable({ rows, onDetalle, onRevisar }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-100">
       <table className="w-full text-left text-sm text-gray-900">
@@ -667,6 +692,7 @@ function ChequeosTable({ rows, onDetalle }) {
             <th className="px-3 py-3 font-semibold">Tipo</th>
             <th className="px-3 py-3 text-right font-semibold">Km</th>
             <th className="px-3 py-3 text-center font-semibold">Fotos</th>
+            <th className="px-3 py-3 text-center font-semibold">Revisión</th>
             <th className="px-3 py-3 text-center font-semibold">Detalle</th>
           </tr>
         </thead>
@@ -701,19 +727,35 @@ function ChequeosTable({ rows, onDetalle }) {
               </td>
 
               <td className="px-3 py-3 text-center">
-                <button
-                  onClick={() => onDetalle(row.id)}
-                  className="inline-flex items-center justify-center rounded-lg border border-gray-200 p-2 text-gray-700 hover:bg-gray-100"
-                >
-                  <Eye size={16} />
-                </button>
+                <RevisionBadge revisado={row.verificado_supervisor} />
+              </td>
+
+              <td className="px-3 py-3 text-center">
+                <div className="flex justify-center gap-2">
+                  <button
+                    onClick={() => onDetalle(row.id)}
+                    className="inline-flex items-center justify-center rounded-lg border border-gray-200 p-2 text-gray-700 hover:bg-gray-100"
+                    title="Ver detalle"
+                  >
+                    <Eye size={16} />
+                  </button>
+                  {!row.verificado_supervisor && (
+                    <button
+                      type="button"
+                      onClick={() => onRevisar(row.id)}
+                      className="rounded-lg border border-[#07AE8B] px-2 py-1 text-xs font-bold text-[#07866D] hover:bg-emerald-50"
+                    >
+                      Revisar
+                    </button>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
 
           {rows.length === 0 && (
             <tr>
-              <td colSpan="7" className="px-3 py-10 text-center text-gray-600">
+              <td colSpan="8" className="px-3 py-10 text-center text-gray-600">
                 No hay chequeos registrados.
               </td>
             </tr>
@@ -724,7 +766,17 @@ function ChequeosTable({ rows, onDetalle }) {
   );
 }
 
-function DetalleChequeo({ data, onClose }) {
+function RevisionBadge({ revisado }) {
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
+      revisado ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+    }`}>
+      {revisado ? 'Revisado' : 'Sin revisar'}
+    </span>
+  );
+}
+
+function DetalleChequeo({ data, onClose, onRevisar }) {
   const itemsMalos = data.items?.filter((item) =>
     ['malo', 'regular'].includes(item.estado)
   ) || [];
@@ -732,6 +784,15 @@ function DetalleChequeo({ data, onClose }) {
   return (
     <div className="space-y-5">
       <div className="flex justify-end">
+        {!data.verificado_supervisor && (
+          <button
+            type="button"
+            onClick={() => onRevisar(data.id)}
+            className="mr-2 inline-flex items-center gap-2 rounded-xl bg-[#07AE8B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#069b7d]"
+          >
+            Marcar revisado
+          </button>
+        )}
         <button
           onClick={onClose}
           className="inline-flex items-center gap-2 rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
@@ -746,6 +807,14 @@ function DetalleChequeo({ data, onClose }) {
         <MiniMetric label="Placas" value={data.placas || '—'} />
         <MiniMetric label="Chofer" value={data.chofer_nombre || '—'} />
         <MiniMetric label="Kilometraje" value={data.kilometraje || '—'} />
+      </div>
+
+      <div className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
+        <span className="mr-2 font-semibold text-gray-950">Estado de revisión:</span>
+        <RevisionBadge revisado={data.verificado_supervisor} />
+        {data.verificado_at && (
+          <span className="ml-2 text-xs text-gray-500">Revisado el {fmtDate(data.verificado_at)}</span>
+        )}
       </div>
 
       <div className="rounded-2xl bg-gray-50 p-4">

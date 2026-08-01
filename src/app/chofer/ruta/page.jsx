@@ -19,6 +19,7 @@ const initialCierre = {
   total_mercancia: '',
   casetas: '',
   limpieza_realizada: true,
+  tipo_limpieza: 'TOTAL',
   reporto_falla: false,
   detalle_falla: '',
   notas_limpieza: '',
@@ -46,6 +47,7 @@ export default function ChoferRutaPage() {
   const [fotoMercancia, setFotoMercancia] = useState(null);
   const [fotoTableroGasolina, setFotoTableroGasolina] = useState(null);
   const [fotoUltimaCaseta, setFotoUltimaCaseta] = useState(null);
+  const [fotosLimpieza, setFotosLimpieza] = useState([null, null, null]);
   const [observacionesInicio, setObservacionesInicio] = useState('');
   const [notasLlegada, setNotasLlegada] = useState('');
   const [loading, setLoading] = useState(false);
@@ -67,6 +69,21 @@ export default function ChoferRutaPage() {
   }, [data]);
 
   const ultimoCierreOperativo = data?.ultimo_cierre_operativo || null;
+  const horaEsperadaLlegada = puntualidadHoy?.hora_programada || viajeActual?.hora_programada || 'Sin horario asignado';
+  const toleranciaLlegada = `${puntualidadHoy?.tolerancia_minutos ?? 5} minutos`;
+  const llegadaRegistrada = Boolean(puntualidadHoy?.hora_llegada);
+  const kmActualSugerido =
+    ultimoCheck?.kilometraje ??
+    viajeActual?.kilometraje_check ??
+    ultimoCierreOperativo?.km_final ??
+    '';
+  const origenKmActual = ultimoCheck?.kilometraje
+    ? 'Se toma del check diario que capturaste hoy.'
+    : viajeActual?.kilometraje_check
+      ? 'Se toma del check ligado a tu ruta.'
+      : ultimoCierreOperativo?.km_final
+        ? 'Se toma del último cierre operativo registrado.'
+        : 'Sin historial';
 
   async function cargar() {
     try {
@@ -94,11 +111,16 @@ export default function ChoferRutaPage() {
 
     setCierre((prev) => ({
       ...prev,
-      km_inicial: prev.km_inicial || String(ultimoCierreOperativo?.km_final || ''),
+      km_inicial: prev.km_inicial || String(kmActualSugerido || ''),
       litros_encontrados: prev.litros_encontrados || String(ultimoCierreOperativo?.litros_dejados || ''),
       precio_litro: prev.precio_litro || String(ultimoCierreOperativo?.precio_litro || ''),
     }));
-  }, [data, ultimoCierreOperativo]);
+  }, [
+    data,
+    kmActualSugerido,
+    ultimoCierreOperativo?.litros_dejados,
+    ultimoCierreOperativo?.precio_litro,
+  ]);
 
   function obtenerUbicacionActual() {
     return new Promise((resolve, reject) => {
@@ -205,8 +227,6 @@ export default function ChoferRutaPage() {
     setSuccess('');
 
     try {
-      const position = await obtenerUbicacionActual();
-
       await api.finalizarViaje(viajeActual.id, {
         km_inicial: cierre.km_inicial ? Number(cierre.km_inicial) : null,
         km_final: Number(cierre.km_final),
@@ -217,12 +237,13 @@ export default function ChoferRutaPage() {
         total_mercancia: Number(cierre.total_mercancia || 0),
         casetas: Number(cierre.casetas || 0),
         limpieza_realizada: cierre.limpieza_realizada,
+        tipo_limpieza: cierre.tipo_limpieza,
         reporto_falla: cierre.reporto_falla,
         detalle_falla: cierre.detalle_falla || null,
         notas_limpieza: cierre.notas_limpieza || null,
         observaciones_fin: cierre.observaciones_fin || null,
-        latitud: position.coords.latitude,
-        longitud: position.coords.longitude,
+        latitud: null,
+        longitud: null,
       });
 
       let successMessage = 'Ruta finalizada correctamente';
@@ -238,9 +259,22 @@ export default function ChoferRutaPage() {
         }
       }
 
+      const fotosLimpiezaSeleccionadas = fotosLimpieza.filter(Boolean);
+      if (fotosLimpiezaSeleccionadas.length > 0) {
+        try {
+          const formData = new FormData();
+          fotosLimpiezaSeleccionadas.forEach((file) => formData.append('fotos', file));
+          await api.subirFotosLimpiezaViaje(viajeActual.id, formData);
+          successMessage = `${successMessage}. Evidencia de limpieza guardada correctamente`;
+        } catch (uploadErr) {
+          successMessage = `${successMessage}. No se pudo subir evidencia de limpieza: ${uploadErr.message}`;
+        }
+      }
+
       setSuccess(successMessage);
       setCierre(initialCierre);
       setFotoTableroGasolina(null);
+      setFotosLimpieza([null, null, null]);
       await cargar();
     } catch (err) {
       setError(err.message || 'No se pudo finalizar la ruta');
@@ -303,8 +337,8 @@ export default function ChoferRutaPage() {
                 subtitle="Puedes registrar tu llegada aunque la ruta todavía no esté asignada."
               >
                 <div className="space-y-3">
-                  <Info label="Hora esperada de llegada" value="06:00:00" />
-                  <Info label="Tolerancia" value="5 minutos" />
+                  <Info label="Hora esperada de llegada" value={horaEsperadaLlegada} />
+                  <Info label="Tolerancia" value={toleranciaLlegada} />
                   <Info
                     label="Llegada registrada"
                     value={puntualidadHoy?.hora_llegada ? fmtDateTime(`${todayMexicoInput()} ${puntualidadHoy.hora_llegada}`) : 'Pendiente'}
@@ -319,7 +353,10 @@ export default function ChoferRutaPage() {
                         : 'Sin registro'
                     }
                   />
-                  {!puntualidadHoy && (
+                  {puntualidadHoy?.horario_notas && (
+                    <Info label="Detalle del horario" value={puntualidadHoy.horario_notas} />
+                  )}
+                  {!llegadaRegistrada && (
                     <>
                       <Textarea
                         label="Notas de llegada"
@@ -366,8 +403,8 @@ export default function ChoferRutaPage() {
                 subtitle="Este registro se usa para medir tu puntualidad antes de salir a ruta."
               >
                 <div className="space-y-3">
-                  <Info label="Hora esperada de llegada" value={viajeActual.hora_programada || '06:00:00'} />
-                  <Info label="Tolerancia" value="5 minutos" />
+                  <Info label="Hora esperada de llegada" value={horaEsperadaLlegada} />
+                  <Info label="Tolerancia" value={toleranciaLlegada} />
                   <Info
                     label="Llegada registrada"
                     value={puntualidadHoy?.hora_llegada ? fmtDateTime(`${viajeActual.fecha} ${puntualidadHoy.hora_llegada}`) : 'Pendiente'}
@@ -382,7 +419,10 @@ export default function ChoferRutaPage() {
                         : 'Sin registro'
                     }
                   />
-                  {!puntualidadHoy && (
+                  {puntualidadHoy?.horario_notas && (
+                    <Info label="Detalle del horario" value={puntualidadHoy.horario_notas} />
+                  )}
+                  {!llegadaRegistrada && (
                     <>
                       <Textarea
                         label="Notas de llegada"
@@ -408,7 +448,8 @@ export default function ChoferRutaPage() {
               >
                 <div className="space-y-3 text-sm text-gray-700">
                   <Info label="Km actual sugerido" value={cierre.km_inicial || 'Sin dato'} />
-                  <Info label="Litros encontrados sugeridos" value={cierre.litros_encontrados || 'Sin dato'} />
+                  <Info label="Origen km actual" value={origenKmActual} />
+                  <Info label="Litros iniciales sugeridos" value={cierre.litros_encontrados || 'Sin dato'} />
                   <Info label="Precio litro sugerido" value={cierre.precio_litro ? fmtMoney(cierre.precio_litro) : 'Sin dato'} />
                   <Info label="Gasto km/litro anterior" value={ultimoCierreOperativo?.rendimiento ? `${Number(ultimoCierreOperativo.rendimiento).toFixed(3)} km/l` : 'Sin dato'} />
                   <Info label="Último cierre" value={ultimoCierreOperativo ? `${fmtDate(ultimoCierreOperativo.fecha)} - ${ultimoCierreOperativo.ruta_nombre}` : 'Sin historial'} />
@@ -530,7 +571,7 @@ export default function ChoferRutaPage() {
             <Card title="Finalizar ruta" subtitle="Captura los datos finales del recorrido.">
               <form onSubmit={finalizarRuta} className="space-y-4">
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                  Solo podrás finalizar la ruta cuando estés físicamente dentro del CEDIS y permitas tu ubicación.
+                  Validación de ubicación CEDIS desactivada temporalmente para pruebas.
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
@@ -539,9 +580,9 @@ export default function ChoferRutaPage() {
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-3">
-                  <Input label="Litros encontrados" type="number" step="0.01" value={cierre.litros_encontrados} onChange={(value) => setCierre({ ...cierre, litros_encontrados: value })} />
+                  <Input label="Litros iniciales" type="number" step="0.01" value={cierre.litros_encontrados} onChange={(value) => setCierre({ ...cierre, litros_encontrados: value })} />
                   <Input label="Litros cargados" type="number" step="0.01" value={cierre.litros_cargados} onChange={(value) => setCierre({ ...cierre, litros_cargados: value })} />
-                  <Input label="Litros dejados" type="number" step="0.01" value={cierre.litros_dejados} onChange={(value) => setCierre({ ...cierre, litros_dejados: value })} />
+                  <Input label="Litros finales" type="number" step="0.01" value={cierre.litros_dejados} onChange={(value) => setCierre({ ...cierre, litros_dejados: value })} />
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
@@ -569,6 +610,47 @@ export default function ChoferRutaPage() {
                   checked={cierre.limpieza_realizada}
                   onChange={(value) => setCierre({ ...cierre, limpieza_realizada: value })}
                 />
+
+                {cierre.limpieza_realizada && (
+                  <div className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4">
+                    <label className="block">
+                      <span className="mb-1 block text-sm font-semibold text-gray-950">Tipo de limpieza</span>
+                      <select
+                        value={cierre.tipo_limpieza}
+                        onChange={(e) => setCierre({ ...cierre, tipo_limpieza: e.target.value })}
+                        className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#07AE8B] focus:ring-4 focus:ring-[#07AE8B]/10"
+                      >
+                        <option value="TOTAL">Limpieza total</option>
+                        <option value="EXTERIOR">Solo exterior</option>
+                        <option value="INTERIOR">Solo interior</option>
+                      </select>
+                    </label>
+
+                    <div>
+                      <p className="text-sm font-semibold text-gray-950">Fotos de evidencia de limpieza</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Toma o adjunta fotos para que el supervisor pueda revisarlas después.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-3">
+                      {fotosLimpieza.map((foto, index) => (
+                        <EvidencePicker
+                          key={index}
+                          label={`Foto limpieza ${index + 1}`}
+                          file={foto}
+                          onChange={(file) => {
+                            setFotosLimpieza((prev) => {
+                              const next = [...prev];
+                              next[index] = file;
+                              return next;
+                            });
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <ToggleCard
                   label="Reporto falla"

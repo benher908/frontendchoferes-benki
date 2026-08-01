@@ -40,19 +40,6 @@ const initialServicio = {
   ruta_id: '',
 };
 
-const initialLimpieza = {
-  fecha: today(),
-  chofer_id: '',
-  unidad_id: '',
-  lavada_semana: false,
-  tipo_limpieza: 'TOTAL',
-  reporto_falla: false,
-  detalle_falla: '',
-  mantenimiento_realizado: true,
-  mantenimiento_a_tiempo: true,
-  notas: '',
-};
-
 export default function RegistroDiarioPage() {
   const [activeTab, setActiveTab] = useState('rendimiento');
   const [catalogos, setCatalogos] = useState({
@@ -63,8 +50,12 @@ export default function RegistroDiarioPage() {
 
   const [rendimiento, setRendimiento] = useState(initialRendimiento);
   const [servicio, setServicio] = useState(initialServicio);
-  const [limpieza, setLimpieza] = useState(initialLimpieza);
-  const [fotosLimpieza, setFotosLimpieza] = useState([]);
+  const [filtrosLimpieza, setFiltrosLimpieza] = useState({
+    fecha: today(),
+    chofer_id: '',
+    unidad_id: '',
+    estado: '',
+  });
 
   const [historial, setHistorial] = useState({
     rendimiento: [],
@@ -233,17 +224,6 @@ export default function RegistroDiarioPage() {
     }
   }
 
-  function seleccionarChoferLimpieza(choferId) {
-    const chofer = obtenerChofer(choferId);
-    const unidadDefault = chofer?.unidad_default_id ? String(chofer.unidad_default_id) : '';
-
-    setLimpieza((prev) => ({
-      ...prev,
-      chofer_id: choferId,
-      unidad_id: unidadDefault,
-    }));
-  }
-
   useEffect(() => {
     if (!cierreChoferRendimiento) return;
 
@@ -318,35 +298,51 @@ export default function RegistroDiarioPage() {
     }
   }
 
-  async function guardarLimpieza(e) {
-    e.preventDefault();
-    setSaving('limpieza');
+  async function consultarLimpieza() {
+    setSaving('limpieza-consulta');
     setError('');
-    setSuccess('');
 
     try {
-      const creado = await api.crearLimpieza({
-        ...limpieza,
-        chofer_id: Number(limpieza.chofer_id),
-        unidad_id: Number(limpieza.unidad_id),
-      });
-
-      if (fotosLimpieza.length > 0) {
-        const formData = new FormData();
-        fotosLimpieza.forEach((file) => formData.append('fotos', file));
-        await api.subirFotosLimpieza(creado.id, formData);
-      }
-
-      setSuccess('Limpieza y cuidado guardado correctamente');
-      setLimpieza(initialLimpieza);
-      setFotosLimpieza([]);
-      await cargarTodo();
+      const limpiezaRes = await api.listarLimpieza();
+      setHistorial((prev) => ({
+        ...prev,
+        limpieza: limpiezaRes || [],
+      }));
     } catch (err) {
       setError(err.message);
     } finally {
       setSaving('');
     }
   }
+
+  async function marcarLimpiezaRevisada(id) {
+    setSaving(`limpieza-${id}`);
+    setError('');
+    setSuccess('');
+
+    try {
+      await api.marcarLimpiezaRevisada(id);
+      setSuccess('Limpieza marcada como revisada');
+      await consultarLimpieza();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving('');
+    }
+  }
+
+  const limpiezaFiltrada = historial.limpieza.filter((item) => {
+    const mismaFecha = !filtrosLimpieza.fecha || String(item.fecha).slice(0, 10) === filtrosLimpieza.fecha;
+    const mismoChofer = !filtrosLimpieza.chofer_id || String(item.chofer_id) === String(filtrosLimpieza.chofer_id);
+    const mismaUnidad = !filtrosLimpieza.unidad_id || String(item.unidad_id) === String(filtrosLimpieza.unidad_id);
+    const revisada = item.verificada_supervisor === 1 || item.verificada_supervisor === true;
+    const mismoEstado =
+      !filtrosLimpieza.estado ||
+      (filtrosLimpieza.estado === 'REVISADO' && revisada) ||
+      (filtrosLimpieza.estado === 'SIN_REVISAR' && !revisada);
+
+    return mismaFecha && mismoChofer && mismaUnidad && mismoEstado;
+  });
 
   return (
     <ProtectedRoute allowedRoles={['supervisor']}>
@@ -443,12 +439,12 @@ export default function RegistroDiarioPage() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <Input label="Litros encontrados" type="number" step="0.01" value={rendimiento.litros_encontrados} onChange={(v) => setRendimiento({ ...rendimiento, litros_encontrados: v })} />
+                      <Input label="Litros iniciales" type="number" step="0.01" value={rendimiento.litros_encontrados} onChange={(v) => setRendimiento({ ...rendimiento, litros_encontrados: v })} />
                       <Input label="Litros cargados" type="number" step="0.01" value={rendimiento.litros} onChange={(v) => setRendimiento({ ...rendimiento, litros: v })} disabled />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <Input label="Litros dejados" type="number" step="0.01" value={rendimiento.litros_dejados} onChange={(v) => setRendimiento({ ...rendimiento, litros_dejados: v })} disabled />
+                      <Input label="Litros finales" type="number" step="0.01" value={rendimiento.litros_dejados} onChange={(v) => setRendimiento({ ...rendimiento, litros_dejados: v })} disabled />
                       <Input label="Precio litro" type="number" step="0.01" value={rendimiento.precio_litro} onChange={(v) => setRendimiento({ ...rendimiento, precio_litro: v })} />
                     </div>
 
@@ -463,7 +459,7 @@ export default function RegistroDiarioPage() {
                         <div className="mt-2 space-y-1">
                           <p>Km final: {cierreChoferRendimiento.km_final ?? '—'}</p>
                           <p>Litros cargados: {cierreChoferRendimiento.litros_cargados ?? '—'}</p>
-                          <p>Litros dejados: {cierreChoferRendimiento.litros_dejados ?? '—'}</p>
+                          <p>Litros finales: {cierreChoferRendimiento.litros_dejados ?? '—'}</p>
                           <p>Gasto km/litro: {cierreChoferRendimiento.gasto_km_litro ? Number(cierreChoferRendimiento.gasto_km_litro).toFixed(3) : '—'}</p>
                           <p>Mercancía: {fmtMoney(cierreChoferRendimiento.total_mercancia || 0)}</p>
                           <p>Casetas: {fmtMoney(cierreChoferRendimiento.casetas || 0)}</p>
@@ -516,7 +512,7 @@ export default function RegistroDiarioPage() {
                   <div className="space-y-3 text-sm text-gray-700">
                     <div className="rounded-2xl bg-gray-50 p-4">
                       <p className="font-semibold text-gray-950">Cómo se calcula ahora</p>
-                      <p className="mt-2">1. Hora programada: horario asignado a la ruta.</p>
+                      <p className="mt-2">1. Hora programada: horario de entrada asignado al chofer.</p>
                       <p>2. Llegada al CEDIS: la registra el chofer desde su dashboard.</p>
                       <p>3. Salida real: se toma automáticamente cuando el chofer inicia la ruta.</p>
                       <p>4. Tolerancia: 5 minutos.</p>
@@ -591,74 +587,38 @@ export default function RegistroDiarioPage() {
             )}
 
             {activeTab === 'limpieza' && (
-              <section className="grid gap-5 xl:grid-cols-[420px_1fr]">
-                <Card title="Capturar limpieza y cuidado" subtitle="Limpieza diaria, fallas y mantenimiento de unidad.">
-                  <form onSubmit={guardarLimpieza} className="space-y-4">
-                    <Input label="Fecha" type="date" value={limpieza.fecha} onChange={(v) => setLimpieza({ ...limpieza, fecha: v })} />
-                    <Select label="Chofer" value={limpieza.chofer_id} onChange={seleccionarChoferLimpieza} options={catalogos.choferes} getLabel={(x) => x.nombre} />
-                    <Select label="Unidad" value={limpieza.unidad_id} onChange={(v) => setLimpieza({ ...limpieza, unidad_id: v })} options={catalogos.unidades} getLabel={(x) => `${x.nombre} - ${x.placas}`} />
-
-                    <Check label="Limpieza realizada en el día" checked={limpieza.lavada_semana} onChange={(v) => setLimpieza({ ...limpieza, lavada_semana: v })} />
+              <section className="space-y-5">
+                <Card title="Revisión de limpieza y cuidado" subtitle="Consulta lo que subió cada chofer y marca como revisado cuando ya lo validaste.">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <Input label="Fecha" type="date" value={filtrosLimpieza.fecha} onChange={(v) => setFiltrosLimpieza({ ...filtrosLimpieza, fecha: v })} />
+                    <Select label="Chofer" value={filtrosLimpieza.chofer_id} onChange={(v) => setFiltrosLimpieza({ ...filtrosLimpieza, chofer_id: v })} options={catalogos.choferes} getLabel={(x) => x.nombre} />
+                    <Select label="Unidad" value={filtrosLimpieza.unidad_id} onChange={(v) => setFiltrosLimpieza({ ...filtrosLimpieza, unidad_id: v })} options={catalogos.unidades} getLabel={(x) => `${x.nombre} - ${x.placas}`} />
                     <Select
-                      label="Tipo de limpieza"
-                      value={limpieza.tipo_limpieza}
-                      onChange={(v) => setLimpieza({ ...limpieza, tipo_limpieza: v })}
+                      label="Estado"
+                      value={filtrosLimpieza.estado}
+                      onChange={(v) => setFiltrosLimpieza({ ...filtrosLimpieza, estado: v })}
                       options={[
-                        { id: 'TOTAL', nombre: 'Limpieza total' },
-                        { id: 'EXTERIOR', nombre: 'Solo exterior' },
-                        { id: 'INTERIOR', nombre: 'Solo interior' },
+                        { id: 'SIN_REVISAR', nombre: 'Sin revisar' },
+                        { id: 'REVISADO', nombre: 'Revisado' },
                       ]}
                       getLabel={(x) => x.nombre}
                     />
+                    <div className="flex items-end">
+                      <Button type="button" loading={saving === 'limpieza-consulta'} onClick={consultarLimpieza}>
+                        Actualizar
+                      </Button>
+                    </div>
+                  </div>
 
-                    <label className="block">
-                      <span className="mb-1 block text-sm font-medium text-gray-700">Fotos de evidencia</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => setFotosLimpieza(Array.from(e.target.files || []))}
-                        className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#07AE8B] focus:ring-4 focus:ring-[#07AE8B]/10"
-                      />
-                      <span className="mt-1 block text-xs text-gray-500">
-                        Adjunta fotos que respalden si fue total, exterior o interior.
-                      </span>
-                    </label>
-
-                    {fotosLimpieza.length > 0 && (
-                      <div className="rounded-2xl bg-gray-50 p-3 text-sm text-gray-700">
-                        {fotosLimpieza.length} foto(s) listas para subir.
-                      </div>
-                    )}
-
-                    <Check label="Chofer/supervisor reportó falla" checked={limpieza.reporto_falla} onChange={(v) => setLimpieza({ ...limpieza, reporto_falla: v })} />
-
-                    {limpieza.reporto_falla && (
-                      <Textarea label="Detalle de falla" value={limpieza.detalle_falla} onChange={(v) => setLimpieza({ ...limpieza, detalle_falla: v })} />
-                    )}
-
-                    <Check label="Mantenimiento realizado" checked={limpieza.mantenimiento_realizado} onChange={(v) => setLimpieza({ ...limpieza, mantenimiento_realizado: v })} />
-                    <Check label="Mantenimiento a tiempo" checked={limpieza.mantenimiento_a_tiempo} onChange={(v) => setLimpieza({ ...limpieza, mantenimiento_a_tiempo: v })} />
-
-                    <Textarea label="Notas" value={limpieza.notas} onChange={(v) => setLimpieza({ ...limpieza, notas: v })} />
-
-                    <Button loading={saving === 'limpieza'}>Guardar limpieza</Button>
-                  </form>
+                  <div className="mt-4 rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-900">
+                    El chofer captura la limpieza desde su flujo. Aquí el supervisor solo consulta evidencia y la marca como revisada cuando tenga tiempo.
+                  </div>
                 </Card>
 
-                <SimpleTable
-                  title="Historial de limpieza y cuidado"
-                  rows={historial.limpieza}
-                  columns={[
-                    ['fecha', 'Fecha'],
-                    ['chofer_nombre', 'Chofer'],
-                    ['unidad_nombre', 'Unidad'],
-                    ['tipo_limpieza', 'Tipo limpieza'],
-                    ['lavada_semana', 'Limpieza del día'],
-                    ['fotos_count', 'Fotos'],
-                    ['reporto_falla', 'Reportó falla'],
-                    ['mantenimiento_a_tiempo', 'Mant. a tiempo'],
-                  ]}
+                <LimpiezaRevisionTable
+                  rows={limpiezaFiltrada}
+                  saving={saving}
+                  onRevisar={marcarLimpiezaRevisada}
                 />
               </section>
             )}
@@ -763,8 +723,8 @@ function RendimientoTable({ rows }) {
               <th className="px-3 py-3 font-semibold">Ruta</th>
               <th className="px-3 py-3 text-right font-semibold">Km</th>
               <th className="px-3 py-3 text-right font-semibold">Litros</th>
-              <th className="px-3 py-3 text-right font-semibold">Encontrados</th>
-              <th className="px-3 py-3 text-right font-semibold">Dejados</th>
+              <th className="px-3 py-3 text-right font-semibold">Iniciales</th>
+              <th className="px-3 py-3 text-right font-semibold">Finales</th>
               <th className="px-3 py-3 text-right font-semibold">Mercancía</th>
               <th className="px-3 py-3 text-right font-semibold">Gasto km/litro</th>
               <th className="px-3 py-3 text-center font-semibold">Tablero</th>
@@ -954,6 +914,107 @@ function ServicioEntregaView({ data }) {
     </div>
   );
 }
+
+function LimpiezaRevisionTable({ rows, saving, onRevisar }) {
+  return (
+    <Card title="Historial de limpieza y cuidado">
+      <div className="overflow-x-auto rounded-xl border border-gray-100">
+        <table className="w-full text-left text-sm text-gray-900">
+          <thead className="bg-gray-50">
+            <tr className="border-b border-gray-200 text-gray-800">
+              <th className="px-3 py-3 font-semibold">Fecha</th>
+              <th className="px-3 py-3 font-semibold">Chofer</th>
+              <th className="px-3 py-3 font-semibold">Unidad</th>
+              <th className="px-3 py-3 font-semibold">Tipo</th>
+              <th className="px-3 py-3 text-center font-semibold">Limpieza</th>
+              <th className="px-3 py-3 text-center font-semibold">Fotos</th>
+              <th className="px-3 py-3 text-center font-semibold">Falla</th>
+              <th className="px-3 py-3 text-center font-semibold">Estado</th>
+              <th className="px-3 py-3 text-center font-semibold">Acción</th>
+            </tr>
+          </thead>
+
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {rows.map((row) => {
+              const revisada = row.verificada_supervisor === 1 || row.verificada_supervisor === true;
+
+              return (
+                <tr key={row.id} className="hover:bg-gray-50">
+                  <td className="whitespace-nowrap px-3 py-3">{fmtDate(row.fecha)}</td>
+                  <td className="px-3 py-3 font-medium text-gray-950">{row.chofer_nombre}</td>
+                  <td className="px-3 py-3">
+                    <div className="font-medium">{row.unidad_nombre}</div>
+                    <div className="text-xs text-gray-600">{row.placas || 'Sin placas'}</div>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3">{tipoLimpiezaLabel(row.tipo_limpieza)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-center">{formatCell(row.lavada_semana)}</td>
+                  <td className="px-3 py-3 text-center">
+                    {row.fotos?.length > 0 ? (
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {row.fotos.map((foto, index) => (
+                          <a
+                            key={foto.id}
+                            href={foto.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700"
+                          >
+                            Foto {index + 1}
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">Sin fotos</span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3 text-center">{formatCell(row.reporto_falla)}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-center">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${
+                        revisada ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {revisada ? 'Revisado' : 'Sin revisar'}
+                    </span>
+                    {row.verificada_at && (
+                      <div className="mt-1 text-xs text-gray-500">{fmtDateTime(row.verificada_at)}</div>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-3 text-center">
+                    <button
+                      type="button"
+                      onClick={() => onRevisar(row.id)}
+                      disabled={revisada || saving === `limpieza-${row.id}`}
+                      className="rounded-xl border border-[#07AE8B] px-3 py-2 text-xs font-bold text-[#07866D] hover:bg-emerald-50 disabled:cursor-not-allowed disabled:border-gray-200 disabled:text-gray-400"
+                    >
+                      {revisada ? 'Listo' : saving === `limpieza-${row.id}` ? 'Guardando...' : 'Marcar revisado'}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan="9" className="px-3 py-8 text-center text-gray-700">
+                  Sin registros de limpieza para estos filtros.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+function tipoLimpiezaLabel(value) {
+  if (value === 'TOTAL') return 'Limpieza total';
+  if (value === 'EXTERIOR') return 'Solo exterior';
+  if (value === 'INTERIOR') return 'Solo interior';
+  return '—';
+}
+
 function SimpleTable({ title, rows, columns }) {
   return (
     <Card title={title}>

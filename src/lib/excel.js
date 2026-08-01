@@ -223,7 +223,6 @@ export function descargarExcelCombustibleDiario({ fecha, periodo = 'dia', rows }
       LITROS: Number(r.litros_consumidos || r.litros || 0),
       TOTAL: Number(r.total_combustible || 0),
       CASETAS: Number(r.casetas || 0),
-      'FOTO TABLERO GASOLINA': safe(r.foto_tablero_gasolina_url),
     }))
   );
 

@@ -6,7 +6,7 @@ import AppShell from '@/components/AppShell';
 import Card from '@/components/Card';
 import { Input, Select, Textarea } from '@/components/FormControls';
 import { api } from '@/lib/api';
-import { fmtDate, fmtDateTime, todayMexicoInput } from '@/lib/formatters';
+import { fmtDate, fmtDateTime, fmtTime, todayMexicoInput } from '@/lib/formatters';
 
 function today() {
   return todayMexicoInput();
@@ -27,11 +27,12 @@ export default function SupervisorRutasPage() {
   const [viajes, setViajes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
   function detallesIniciales() {
-    return [{ tipo: 'COMPLEMENTARIA', ruta_id: '', descripcion: '', observaciones: '' }];
+    return [{ tipo: 'DESVIO', ruta_id: '', descripcion: '', observaciones: '' }];
   }
 
   function rutasDelChofer(choferId) {
@@ -124,6 +125,24 @@ export default function SupervisorRutasPage() {
     }
   }
 
+  async function generarRutasDia() {
+    try {
+      setGenerating(true);
+      setError('');
+      setSuccess('');
+
+      const res = await api.generarViajesDia({ fecha: form.fecha });
+      const sinUnidad = Array.isArray(res?.sin_unidad) ? res.sin_unidad.length : 0;
+      const extra = sinUnidad ? ` ${sinUnidad} pendiente(s) sin unidad default.` : '';
+      setSuccess(`Rutas generadas: ${res?.creadas || 0}. Ya existentes: ${res?.existentes || 0}.${extra}`);
+      await cargar();
+    } catch (err) {
+      setError(err.message || 'No se pudieron generar las rutas del día');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
   async function cancelar(viaje) {
     try {
       setError('');
@@ -152,7 +171,33 @@ export default function SupervisorRutasPage() {
         {success && <div className="mb-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{success}</div>}
 
         <section className="grid gap-5 xl:grid-cols-[420px_1fr]">
-          <Card title="Asignar ruta" subtitle="Se crea la ruta del día y el chofer luego la opera desde su app.">
+          <div className="space-y-5">
+            <Card
+              title="Generación automática"
+              subtitle="Crea las rutas del día según el horario, la ruta y la unidad default de cada chofer."
+            >
+              <div className="space-y-4">
+                <Input
+                  label="Fecha operativa"
+                  type="date"
+                  value={form.fecha}
+                  onChange={(value) => setForm({ ...form, fecha: value })}
+                />
+                <button
+                  type="button"
+                  onClick={generarRutasDia}
+                  disabled={generating || loading}
+                  className="w-full rounded-xl bg-[#111827] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1f2937] disabled:opacity-60"
+                >
+                  {generating ? 'Generando...' : 'Generar rutas del día'}
+                </button>
+                <p className="text-xs text-gray-500">
+                  No duplica rutas existentes. Las excepciones se ajustan abajo con asignación manual.
+                </p>
+              </div>
+            </Card>
+
+          <Card title="Asignación manual / ajuste" subtitle="Usa este formulario para cambios, rutas especiales, desvíos o unidades comodín.">
             <form onSubmit={guardar} className="space-y-4">
               <Input
                 label="Fecha operativa"
@@ -208,19 +253,9 @@ export default function SupervisorRutasPage() {
 
                 {(form.detalles || []).map((detalle, index) => (
                   <div key={index} className="grid gap-3 rounded-xl border border-gray-100 p-3">
-                    <Select
-                      label="Tipo"
-                      value={detalle.tipo}
-                      onChange={(value) => {
-                        const next = [...(form.detalles || [])];
-                        next[index] = { ...next[index], tipo: value };
-                        setForm({ ...form, detalles: next });
-                      }}
-                      options={[
-                        { id: 'DESVIO', nombre: 'Desvío' },
-                        { id: 'COMPLEMENTARIA', nombre: 'Complementaria' },
-                      ]}
-                    />
+                    <div className="rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                      <span className="font-semibold text-gray-950">Tipo:</span> Desvío
+                    </div>
                     <Select
                       label="Ruta adicional"
                       value={detalle.ruta_id || ''}
@@ -264,7 +299,7 @@ export default function SupervisorRutasPage() {
 
                 <button
                   type="button"
-                  onClick={() => setForm({ ...form, detalles: [...(form.detalles || []), { tipo: 'COMPLEMENTARIA', ruta_id: '', descripcion: '', observaciones: '' }] })}
+                  onClick={() => setForm({ ...form, detalles: [...(form.detalles || []), { tipo: 'DESVIO', ruta_id: '', descripcion: '', observaciones: '' }] })}
                   className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
                 >
                   Agregar ruta adicional
@@ -279,6 +314,7 @@ export default function SupervisorRutasPage() {
               </button>
             </form>
           </Card>
+          </div>
 
           <Card title="Seguimiento" subtitle={`Rutas registradas para ${fmtDate(form.fecha)}`}>
             <div className="space-y-4">
@@ -317,9 +353,9 @@ export default function SupervisorRutasPage() {
 
                       <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                         <InfoItem label="Horario" value={viaje.hora_programada || '—'} />
-                        <InfoItem label="Inicio" value={fmtDateTime(viaje.hora_inicio)} />
-                        <InfoItem label="Fin" value={fmtDateTime(viaje.hora_fin)} />
-                        <InfoItem label="Hora última caseta" value={fmtDateTime(viaje.foto_ultima_caseta_at)} />
+                        <InfoItem label="Inicio" value={fmtTime(viaje.hora_inicio)} />
+                        <InfoItem label="Fin" value={fmtTime(viaje.hora_fin)} />
+                        <InfoItem label="Hora última caseta" value={fmtTime(viaje.foto_ultima_caseta_at)} />
                       </div>
 
                       <div className="mt-3">
@@ -402,11 +438,11 @@ export default function SupervisorRutasPage() {
                         </span>
                       </td>
                       <td className="px-3 py-3">{viaje.hora_programada || '—'}</td>
-                      <td className="px-3 py-3">{fmtDateTime(viaje.hora_inicio)}</td>
-                      <td className="px-3 py-3">{fmtDateTime(viaje.hora_fin)}</td>
+                      <td className="px-3 py-3 whitespace-nowrap">{fmtTime(viaje.hora_inicio)}</td>
+                      <td className="px-3 py-3 whitespace-nowrap">{fmtTime(viaje.hora_fin)}</td>
                       <td className="px-3 py-3">
                         <div className="space-y-1 text-xs text-gray-600">
-                          <div>{fmtDateTime(viaje.foto_ultima_caseta_at)}</div>
+                          <div>{fmtTime(viaje.foto_ultima_caseta_at)}</div>
                           {viaje.foto_ultima_caseta_url ? (
                             <a
                               href={viaje.foto_ultima_caseta_url}

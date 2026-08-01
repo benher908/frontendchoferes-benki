@@ -118,6 +118,25 @@ export const api = {
     return apiFetch(`/encuestas-internas${suffix}`);
   },
 
+  listarPreguntasEncuesta: () => apiFetch('/encuestas-preguntas'),
+
+  guardarPreguntaEncuesta: (payload) =>
+    apiFetch('/encuestas-preguntas', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  actualizarPreguntaEncuesta: (id, payload) =>
+    apiFetch(`/encuestas-preguntas/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
+  desactivarPreguntaEncuesta: (id) =>
+    apiFetch(`/encuestas-preguntas/${id}`, {
+      method: 'DELETE',
+    }),
+
   listarViajes: (params = {}) => {
     const search = new URLSearchParams();
 
@@ -133,6 +152,12 @@ export const api = {
 
   asignarViaje: (payload) =>
     apiFetch('/rutas-viajes/asignar', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  generarViajesDia: (payload) =>
+    apiFetch('/rutas-viajes/generar-dia', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
@@ -168,6 +193,12 @@ export const api = {
 
   subirFotoUltimaCaseta: (id, formData) =>
     apiFetch(`/rutas-viajes/${id}/foto-ultima-caseta`, {
+      method: 'POST',
+      body: formData,
+    }),
+
+  subirFotosLimpiezaViaje: (id, formData) =>
+    apiFetch(`/rutas-viajes/${id}/fotos-limpieza`, {
       method: 'POST',
       body: formData,
     }),
@@ -246,6 +277,11 @@ export const api = {
     }),
 
   listarLimpieza: () => apiFetch('/limpieza'),
+
+  marcarLimpiezaRevisada: (id) =>
+    apiFetch(`/limpieza/${id}/revisar`, {
+      method: 'PATCH',
+    }),
 
   ultimoKmUnidad: (unidadId) => apiFetch(`/unidades/${unidadId}/ultimo-km`),
 
@@ -351,6 +387,11 @@ export const api = {
     apiFetch(`/chequeos/${id}/fotos`, {
       method: 'POST',
       body: formData,
+    }),
+
+  revisarChequeo: (id) =>
+    apiFetch(`/chequeos/${id}/revisar`, {
+      method: 'PATCH',
     }),
 
   ultimoChequeoChofer: ({ unidad_id, chofer_id }) => {

@@ -21,10 +21,11 @@ export function Input({ label, hint, value, onChange, className = '', ...props }
   );
 }
 
-export function Select({ label, hint, value, onChange, options = [], getLabel = (x) => x.nombre, optional = false }) {
+export function Select({ label, hint, value, onChange, options = [], getLabel = (x) => x.nombre, optional = false, ...props }) {
   return (
     <Field label={label} hint={hint}>
       <select
+        {...props}
         value={value}
         required={!optional}
         onChange={(e) => onChange?.(e.target.value)}

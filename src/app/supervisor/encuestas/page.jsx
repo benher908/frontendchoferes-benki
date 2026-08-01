@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import AppShell from '@/components/AppShell';
 import Card from '@/components/Card';
-import { Input, Select } from '@/components/FormControls';
+import { Input, Select, Textarea } from '@/components/FormControls';
 import { api } from '@/lib/api';
 import { descargarExcelEncuestasMensuales } from '@/lib/excel';
 
@@ -22,6 +22,24 @@ const MESES = [
   { id: 11, label: 'Noviembre' },
   { id: 12, label: 'Diciembre' },
 ];
+
+const CODIGOS_PREGUNTA = [
+  { id: 'pedido_completo', nombre: 'Pedido completo / sin faltantes', tipo: 'SI_NO' },
+  { id: 'amabilidad_chofer', nombre: 'Respeto y cortesia del chofer', tipo: 'ESCALA_1_5' },
+  { id: 'cuidado_entrega', nombre: 'Mercancia sin danos', tipo: 'ESCALA_1_5' },
+  { id: 'facilidad_recepcion', nombre: 'Documentacion correcta', tipo: 'ESCALA_1_5' },
+  { id: 'servicio_general', nombre: 'Probabilidad de volver a recibir servicio', tipo: 'ESCALA_1_5' },
+  { id: 'claridad_comunicacion', nombre: 'Dudas o incidencias resueltas', tipo: 'ESCALA_1_5' },
+];
+
+const PREGUNTA_FORM_INICIAL = {
+  id: '',
+  codigo: 'pedido_completo',
+  pregunta: '',
+  tipo: 'SI_NO',
+  orden: 1,
+  activa: true,
+};
 
 function currentPeriodo() {
   const now = new Date();
@@ -53,7 +71,10 @@ export default function SupervisorEncuestasPage() {
   const [periodo, setPeriodo] = useState(initialPeriodo);
   const [catalogos, setCatalogos] = useState({ choferes: [], rutas: [] });
   const [data, setData] = useState({ encuestas: [], resumen_choferes: [], comentarios: [] });
+  const [preguntas, setPreguntas] = useState([]);
+  const [preguntaForm, setPreguntaForm] = useState(PREGUNTA_FORM_INICIAL);
   const [loading, setLoading] = useState(true);
+  const [savingPregunta, setSavingPregunta] = useState(false);
   const [error, setError] = useState('');
   const [qrRutaId, setQrRutaId] = useState('');
 
@@ -67,7 +88,7 @@ export default function SupervisorEncuestasPage() {
       setLoading(true);
       setError('');
       const rango = getMonthRange(periodo.anio, periodo.mes);
-      const [catalogoRes, encuestasRes] = await Promise.all([
+      const [catalogoRes, encuestasRes, preguntasRes] = await Promise.all([
         api.catalogos(),
         api.listarEncuestasInternas({
           ...filters,
@@ -75,6 +96,7 @@ export default function SupervisorEncuestasPage() {
           desde: rango.desde,
           hasta: rango.hasta,
         }),
+        api.listarPreguntasEncuesta(),
       ]);
 
       setCatalogos({
@@ -82,6 +104,7 @@ export default function SupervisorEncuestasPage() {
         rutas: catalogoRes?.rutas || [],
       });
       setData(encuestasRes || { encuestas: [], resumen_choferes: [], comentarios: [] });
+      setPreguntas(preguntasRes?.preguntas || []);
     } catch (err) {
       setError(err.message || 'No se pudieron cargar las encuestas');
     } finally {
@@ -116,6 +139,68 @@ export default function SupervisorEncuestasPage() {
       encuestas: data.encuestas || [],
       comentarios: data.comentarios || [],
     });
+  }
+
+  function seleccionarCodigoPregunta(codigo) {
+    const config = CODIGOS_PREGUNTA.find((item) => item.id === codigo);
+    setPreguntaForm({
+      ...preguntaForm,
+      codigo,
+      tipo: config?.tipo || 'ESCALA_1_5',
+    });
+  }
+
+  function editarPregunta(row) {
+    setPreguntaForm({
+      id: row.id,
+      codigo: row.codigo,
+      pregunta: row.pregunta,
+      tipo: row.tipo,
+      orden: row.orden,
+      activa: Boolean(row.activa),
+    });
+  }
+
+  async function guardarPregunta(e) {
+    e.preventDefault();
+
+    try {
+      setSavingPregunta(true);
+      setError('');
+
+      const payload = {
+        codigo: preguntaForm.codigo,
+        pregunta: preguntaForm.pregunta,
+        tipo: preguntaForm.tipo,
+        orden: Number(preguntaForm.orden || 1),
+        activa: Boolean(preguntaForm.activa),
+      };
+
+      if (preguntaForm.id) {
+        await api.actualizarPreguntaEncuesta(preguntaForm.id, payload);
+      } else {
+        await api.guardarPreguntaEncuesta(payload);
+      }
+
+      const preguntasRes = await api.listarPreguntasEncuesta();
+      setPreguntas(preguntasRes?.preguntas || []);
+      setPreguntaForm(PREGUNTA_FORM_INICIAL);
+    } catch (err) {
+      setError(err.message || 'No se pudo guardar la pregunta');
+    } finally {
+      setSavingPregunta(false);
+    }
+  }
+
+  async function desactivarPregunta(id) {
+    try {
+      setError('');
+      await api.desactivarPreguntaEncuesta(id);
+      const preguntasRes = await api.listarPreguntasEncuesta();
+      setPreguntas(preguntasRes?.preguntas || []);
+    } catch (err) {
+      setError(err.message || 'No se pudo desactivar la pregunta');
+    }
   }
 
   const rutaQrUrl = qrRutaId && baseUrl ? `${baseUrl}/encuesta/ruta/${qrRutaId}` : '';
@@ -262,6 +347,121 @@ export default function SupervisorEncuestasPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          </Card>
+        </section>
+
+        <section className="mb-6">
+          <Card
+            title="Preguntas de la encuesta"
+            subtitle="El supervisor puede ajustar el texto, orden y estado de las preguntas que ve el cliente."
+          >
+            <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
+              <form onSubmit={guardarPregunta} className="space-y-4">
+                <Select
+                  label="Criterio"
+                  value={preguntaForm.codigo}
+                  onChange={seleccionarCodigoPregunta}
+                  options={CODIGOS_PREGUNTA}
+                  getLabel={(x) => x.nombre}
+                  disabled={Boolean(preguntaForm.id)}
+                />
+                <Textarea
+                  label="Pregunta"
+                  rows={3}
+                  value={preguntaForm.pregunta}
+                  onChange={(value) => setPreguntaForm({ ...preguntaForm, pregunta: value })}
+                />
+                <Input
+                  label="Orden"
+                  type="number"
+                  min="1"
+                  value={preguntaForm.orden}
+                  onChange={(value) => setPreguntaForm({ ...preguntaForm, orden: value })}
+                />
+                <Select
+                  label="Estado"
+                  value={preguntaForm.activa ? '1' : '0'}
+                  onChange={(value) => setPreguntaForm({ ...preguntaForm, activa: value === '1' })}
+                  options={[
+                    { id: '1', nombre: 'Activa' },
+                    { id: '0', nombre: 'Inactiva' },
+                  ]}
+                  getLabel={(x) => x.nombre}
+                />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="submit"
+                    disabled={savingPregunta}
+                    className="h-12 rounded-2xl bg-[#F54927] px-4 text-sm font-bold text-white hover:bg-[#F7674A] disabled:opacity-50"
+                  >
+                    {savingPregunta ? 'Guardando...' : preguntaForm.id ? 'Actualizar pregunta' : 'Guardar pregunta'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreguntaForm(PREGUNTA_FORM_INICIAL)}
+                    className="h-12 rounded-2xl border border-gray-300 bg-white px-4 text-sm font-bold text-gray-700 hover:bg-gray-50"
+                  >
+                    Limpiar
+                  </button>
+                </div>
+              </form>
+
+              <div className="overflow-x-auto rounded-xl border border-gray-100">
+                <table className="w-full text-left text-sm text-gray-900">
+                  <thead className="bg-gray-50">
+                    <tr className="border-b border-gray-200">
+                      <th className="px-3 py-3 font-semibold">Orden</th>
+                      <th className="px-3 py-3 font-semibold">Pregunta</th>
+                      <th className="px-3 py-3 font-semibold">Estado</th>
+                      <th className="px-3 py-3 text-right font-semibold">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 bg-white">
+                    {(preguntas || []).map((row) => (
+                      <tr key={row.id}>
+                        <td className="px-3 py-3">{row.orden}</td>
+                        <td className="px-3 py-3">
+                          <p className="font-semibold text-gray-950">{row.pregunta}</p>
+                          <p className="text-xs text-gray-500">{row.codigo} · {row.tipo}</p>
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${row.activa ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'}`}>
+                            {row.activa ? 'Activa' : 'Inactiva'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => editarPregunta(row)}
+                              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                            >
+                              Editar
+                            </button>
+                            {row.activa && (
+                              <button
+                                type="button"
+                                onClick={() => desactivarPregunta(row.id)}
+                                className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-50"
+                              >
+                                Desactivar
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {(preguntas || []).length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="px-3 py-8 text-center text-gray-600">
+                          No hay preguntas configuradas.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </Card>

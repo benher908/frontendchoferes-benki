@@ -227,6 +227,8 @@ export default function ChoferRutaPage() {
     setSuccess('');
 
     try {
+      const position = await obtenerUbicacionActual();
+
       await api.finalizarViaje(viajeActual.id, {
         km_inicial: cierre.km_inicial ? Number(cierre.km_inicial) : null,
         km_final: Number(cierre.km_final),
@@ -242,8 +244,8 @@ export default function ChoferRutaPage() {
         detalle_falla: cierre.detalle_falla || null,
         notas_limpieza: cierre.notas_limpieza || null,
         observaciones_fin: cierre.observaciones_fin || null,
-        latitud: null,
-        longitud: null,
+        latitud: position.coords.latitude,
+        longitud: position.coords.longitude,
       });
 
       let successMessage = 'Ruta finalizada correctamente';
@@ -570,8 +572,8 @@ export default function ChoferRutaPage() {
 
             <Card title="Finalizar ruta" subtitle="Captura los datos finales del recorrido.">
               <form onSubmit={finalizarRuta} className="space-y-4">
-                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-                  Validación de ubicación CEDIS desactivada temporalmente para pruebas.
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+                  Para finalizar la ruta debes estar dentro del radio permitido del CEDIS y permitir tu ubicación.
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2">
